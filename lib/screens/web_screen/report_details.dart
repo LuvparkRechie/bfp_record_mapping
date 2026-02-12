@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 
 class ReportDetailsScreen extends StatelessWidget {
@@ -14,892 +12,330 @@ class ReportDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final reportData = report['report'] ?? {};
+    final groupedAnswers = report['grouped_answers'] as Map? ?? {};
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
-          'Inspection Report',
-          style: TextStyle(fontWeight: FontWeight.w600),
+        title: Text(
+          reportData['report_no'] ?? 'Inspection Report',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         ),
         backgroundColor: Colors.white,
-        elevation: 1,
+        elevation: 0.5,
         foregroundColor: Colors.black87,
         actions: [
-          // Status Badge
           Container(
-            margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            margin: const EdgeInsets.only(right: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: _getStatusColor().withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: _getStatusColor().withOpacity(0.3)),
+              color: _getStatusColor(
+                reportData['overall_status'],
+              ).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(4),
             ),
-            child: Row(
-              children: [
-                Icon(_getStatusIcon(), size: 16, color: _getStatusColor()),
-                const SizedBox(width: 6),
-                Text(
-                  report['overall_status'] ?? 'PENDING',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: _getStatusColor(),
-                  ),
-                ),
-              ],
+            child: Text(
+              reportData['overall_status'] ?? 'PENDING',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: _getStatusColor(reportData['overall_status']),
+              ),
             ),
           ),
-          const SizedBox(width: 8),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Report Header Card
-            _buildHeaderCard(),
-            const SizedBox(height: 16),
-
-            // Statistics Card
-            _buildStatisticsCard(),
-            const SizedBox(height: 16),
-
-            // Checklist Responses Card
-            _buildChecklistCard(),
-            const SizedBox(height: 16),
-
-            // Notes Card
-            if (report['notes'] != null &&
-                report['notes'].toString().isNotEmpty)
-              _buildNotesCard(),
-            const SizedBox(height: 16),
-
-            // Action Buttons
-            _buildActionButtons(),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Header Card
-  Widget _buildHeaderCard() {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      body: groupedAnswers.isEmpty
+          ? Center(
+              child: Text('No data', style: TextStyle(color: Colors.grey[600])),
+            )
+          : ListView(
+              padding: const EdgeInsets.all(16),
               children: [
+                // Header
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(
-                    Icons.description,
-                    color: Color(0xFFD32F2F),
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        report['report_no'] ?? 'N/A',
+                        reportData['building_name'] ?? 'Unknown Building',
                         style: const TextStyle(
                           fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _formatDateTime(report['submission_date']),
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey.shade600,
-                        ),
+                        reportData['building_address'] ?? '',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                       ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const Divider(height: 24),
-
-            // Establishment Info
-            Row(
-              children: [
-                Icon(Icons.business, size: 18, color: Colors.grey.shade600),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        report['building_name'] ?? 'N/A',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                      if (report['building_address'] != null)
-                        Text(
-                          report['building_address'],
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
+                      const Divider(height: 24),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Inspector: ${reportData['inspector_name'] ?? 'N/A'}',
+                              style: TextStyle(color: Colors.grey[700]),
+                            ),
                           ),
-                        ),
+                          Text(
+                            'Date: ${_formatDate(reportData['inspection_date'])}',
+                            style: TextStyle(color: Colors.grey[700]),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
+                const SizedBox(height: 16),
 
-            // Inspector and Date
-            Row(
-              children: [
-                Expanded(
+                // Stats
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      Icon(
-                        Icons.person_outline,
-                        size: 18,
-                        color: Colors.grey.shade600,
+                      _buildStat('Total', '${reportData['total_items'] ?? 0}'),
+                      _buildStat(
+                        'Passed',
+                        '${reportData['passed_items'] ?? 0}',
+                        color: Colors.green[700],
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Inspector',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                            Text(
-                              report['inspector_name'] ?? 'N/A',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: Color(0xFF1E293B),
-                              ),
-                            ),
-                          ],
-                        ),
+                      _buildStat(
+                        'Failed',
+                        '${reportData['failed_items'] ?? 0}',
+                        color: Colors.red[700],
                       ),
                     ],
                   ),
                 ),
-                Expanded(
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.calendar_today,
-                        size: 18,
-                        color: Colors.grey.shade600,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Inspection Date',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                            Text(
-                              _formatDate(report['inspection_date']),
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: Color(0xFF1E293B),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                const SizedBox(height: 24),
+
+                // Checklist Sections - JUST THE QUESTIONS AND ANSWERS
+                ...groupedAnswers.entries.map(
+                  (entry) => _buildSection(entry.key, entry.value),
                 ),
               ],
             ),
-          ],
-        ),
-      ),
     );
   }
 
-  // Statistics Card
-  Widget _buildStatisticsCard() {
-    final total = report['total_items'] ?? 0;
-    final passed = report['passed_items'] ?? 0;
-    final failed = report['failed_items'] ?? 0;
-    final na = report['na_items'] ?? 0;
-    final compliance = total > 0
-        ? (passed / total * 100).toStringAsFixed(1)
-        : '0';
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Inspection Summary',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Stats Row
-            Row(
-              children: [
-                _buildStatItem('Total', '$total', Icons.list, Colors.blue),
-                _buildStatItem(
-                  'Passed',
-                  '$passed',
-                  Icons.check_circle,
-                  Colors.green,
-                ),
-                _buildStatItem('Failed', '$failed', Icons.cancel, Colors.red),
-                _buildStatItem('N/A', '$na', Icons.help_outline, Colors.grey),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Compliance Rate
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.green.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.analytics, color: Colors.green.shade700, size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Compliance Rate',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.green.shade800,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '$compliance%',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green.shade800,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.green.shade300),
-                    ),
-                    child: Text(
-                      '${report['overall_status'] ?? 'PENDING'}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: _getStatusColor(),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatItem(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Expanded(
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Checklist Card - Parse and display the answers JSON
-  Widget _buildChecklistCard() {
-    try {
-      Map<String, dynamic> answers = {};
-
-      // Parse answers JSON
-      if (report['answers'] is String) {
-        answers = jsonDecode(report['answers']);
-      } else if (report['answers'] is Map) {
-        answers = report['answers'];
-      }
-
-      if (answers.isEmpty) {
-        return _buildEmptyChecklist();
-      }
-
-      // Group answers by type
-      final textAnswers = <String, String>{};
-      final checkboxAnswers = <String, List<bool>>{};
-      final measurementAnswers = <String, String>{};
-      final remarksAnswers = <String, String>{};
-
-      answers.forEach((key, value) {
-        if (key.startsWith('text_')) {
-          textAnswers[key] = value.toString();
-        } else if (key.startsWith('checkbox_')) {
-          if (value is List) {
-            checkboxAnswers[key] = List<bool>.from(value);
-          }
-        } else if (key.startsWith('measurement_')) {
-          measurementAnswers[key] = value.toString();
-        } else if (key.startsWith('remarks_')) {
-          remarksAnswers[key] = value.toString();
-        }
-      });
-
-      return Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: Colors.grey.shade200),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Checklist Responses',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Text Answers
-              if (textAnswers.isNotEmpty) ...[
-                _buildSectionHeader(
-                  'Text Inputs',
-                  Icons.text_fields,
-                  Colors.blue,
-                ),
-                const SizedBox(height: 8),
-                ...textAnswers.entries.map(
-                  (e) => _buildTextItem(e.key, e.value),
-                ),
-                const SizedBox(height: 16),
-              ],
-
-              // Measurements
-              if (measurementAnswers.isNotEmpty) ...[
-                _buildSectionHeader(
-                  'Measurements',
-                  Icons.straighten,
-                  Colors.orange,
-                ),
-                const SizedBox(height: 8),
-                ...measurementAnswers.entries.map(
-                  (e) => _buildTextItem(e.key, e.value),
-                ),
-                const SizedBox(height: 16),
-              ],
-
-              // Checkbox Items
-              if (checkboxAnswers.isNotEmpty) ...[
-                _buildSectionHeader(
-                  'Checklist Items',
-                  Icons.check_box,
-                  Colors.green,
-                ),
-                const SizedBox(height: 8),
-                ...checkboxAnswers.entries.map(
-                  (e) => _buildCheckboxItem(e.key, e.value),
-                ),
-                const SizedBox(height: 16),
-              ],
-
-              // Remarks
-              if (remarksAnswers.isNotEmpty) ...[
-                _buildSectionHeader('Remarks', Icons.comment, Colors.purple),
-                const SizedBox(height: 8),
-                ...remarksAnswers.entries.map(
-                  (e) => _buildTextItem(e.key, e.value),
-                ),
-              ],
-            ],
-          ),
-        ),
-      );
-    } catch (e) {
-      return _buildErrorChecklist(e.toString());
-    }
-  }
-
-  Widget _buildSectionHeader(String title, IconData icon, Color color) {
-    return Row(
+  Widget _buildStat(String label, String value, {Color? color}) {
+    return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Icon(icon, size: 16, color: color),
-        ),
-        const SizedBox(width: 8),
         Text(
-          title,
+          value,
           style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: color,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: color ?? Colors.black,
           ),
         ),
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
       ],
     );
   }
 
-  Widget _buildTextItem(String key, String value) {
+  Widget _buildSection(String sectionName, List items) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              key.split('_').last,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.blue.shade700,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCheckboxItem(String key, List<bool> values) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
+      margin: const EdgeInsets.only(bottom: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  'Item ${key.split('_').last}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.green.shade700,
-                  ),
-                ),
-              ),
-            ],
+          // Section Title
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            color: Colors.grey[100],
+            child: Text(
+              sectionName,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: values.asMap().entries.map((entry) {
-              final index = entry.key + 1;
-              final isPassed = entry.value;
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: isPassed ? Colors.green.shade50 : Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isPassed
-                        ? Colors.green.shade200
-                        : Colors.red.shade200,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isPassed ? Icons.check_circle : Icons.cancel,
-                      size: 14,
-                      color: isPassed
-                          ? Colors.green.shade700
-                          : Colors.red.shade700,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Option $index: ${isPassed ? 'Passed' : 'Failed'}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isPassed
-                            ? Colors.green.shade700
-                            : Colors.red.shade700,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
+          const SizedBox(height: 8),
+
+          // Questions
+          ...items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildQuestion(item),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyChecklist() {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          children: [
-            Icon(Icons.inbox, size: 48, color: Colors.grey.shade400),
-            const SizedBox(height: 12),
-            Text(
-              'No checklist responses',
-              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-            ),
-          ],
+  Widget _buildQuestion(Map<String, dynamic> item) {
+    final type = item['type'] ?? '';
+    final value = item['value'];
+    final question = item['item_text'] ?? 'Unknown Item';
+    final options = item['checkbox_options'] as List?;
+
+    // TEXT INPUT
+    if (type.contains('text')) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey[300]!),
+          borderRadius: BorderRadius.circular(4),
         ),
-      ),
-    );
-  }
-
-  Widget _buildErrorChecklist(String error) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.red.shade200),
-      ),
-      color: Colors.red.shade50,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Icon(Icons.error_outline, color: Colors.red.shade700),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Error loading responses',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF991B1B),
-                    ),
-                  ),
-                  Text(
-                    error,
-                    style: TextStyle(fontSize: 12, color: Colors.red.shade800),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Notes Card
-  Widget _buildNotesCard() {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.orange.shade200),
-      ),
-      color: Colors.orange.shade50,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Icon(Icons.note_alt, color: Colors.orange.shade700),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Remarks',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF9A3412),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    report['notes'],
-                    style: TextStyle(color: Colors.orange.shade900),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Action Buttons
-  Widget _buildActionButtons() {
-    final currentStatus =
-        report['overall_status']?.toString().toUpperCase() ?? 'PENDING';
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Report Actions',
+            Text(
+              question,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 8),
+            Text(value?.toString() ?? '', style: const TextStyle(fontSize: 13)),
+          ],
+        ),
+      );
+    }
+
+    // SINGLE CHECKBOX
+    if (type.contains('checkbox') && value is List && value.length == 1) {
+      final isPassed = value[0] == true;
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey[300]!),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          children: [
+            Text(
+              isPassed ? '✓' : '✗',
               style: TextStyle(
-                fontSize: 16,
+                color: isPassed ? Colors.green[700] : Colors.red[700],
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
+                fontSize: 16,
               ),
             ),
-            const SizedBox(height: 16),
-
-            // Status Update Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: _buildActionButton(
-                    label: 'PASSED',
-                    icon: Icons.check_circle,
-                    color: Colors.green,
-                    isEnabled: currentStatus != 'PASSED',
-                    onPressed: currentStatus != 'PASSED'
-                        ? () => _updateStatus('PASSED')
-                        : null,
-                  ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(question, style: const TextStyle(fontSize: 13)),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: isPassed ? Colors.green[50] : Colors.red[50],
+                borderRadius: BorderRadius.circular(2),
+              ),
+              child: Text(
+                isPassed ? 'PASSED' : 'FAILED',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isPassed ? Colors.green[800] : Colors.red[800],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildActionButton(
-                    label: 'FAILED',
-                    icon: Icons.cancel,
-                    color: Colors.red,
-                    isEnabled: currentStatus != 'FAILED',
-                    onPressed: currentStatus != 'FAILED'
-                        ? () => _updateStatus('FAILED')
-                        : null,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildActionButton(
-                    label: 'PENDING',
-                    icon: Icons.pending,
-                    color: Colors.orange,
-                    isEnabled: currentStatus != 'PENDING',
-                    onPressed: currentStatus != 'PENDING'
-                        ? () => _updateStatus('PENDING')
-                        : null,
-                  ),
-                ),
-              ],
+              ),
             ),
           ],
         ),
-      ),
-    );
+      );
+    }
+
+    // CHECKBOX GROUP
+    if (type.contains('checkbox') && value is List && value.length > 1) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey[300]!),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              question,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: value.asMap().entries.map((entry) {
+                final index = entry.key;
+                final isSelected = entry.value;
+                final optionLabel = options != null && index < options.length
+                    ? options[index].toString().replaceAll('\\/', '/')
+                    : index == 0
+                    ? 'Passed'
+                    : index == 1
+                    ? 'Failed'
+                    : 'N/A';
+
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? (index == 0
+                              ? Colors.green[50]
+                              : index == 1
+                              ? Colors.red[50]
+                              : Colors.grey[50])
+                        : Colors.grey[100],
+                    border: Border.all(color: Colors.grey[400]!),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                  child: Text(
+                    optionLabel,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isSelected
+                          ? (index == 0
+                                ? Colors.green[800]
+                                : index == 1
+                                ? Colors.red[800]
+                                : Colors.grey[800])
+                          : Colors.grey[600],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
-  Widget _buildActionButton({
-    required String label,
-    required IconData icon,
-    required Color color,
-    required bool isEnabled,
-    required VoidCallback? onPressed,
-  }) {
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 18),
-      label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isEnabled ? color : Colors.grey.shade300,
-        foregroundColor: isEnabled ? Colors.white : Colors.grey.shade600,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        elevation: isEnabled ? 2 : 0,
-      ),
-    );
-  }
-
-  // Helper Methods
-  Future<void> _updateStatus(String newStatus) async {
-    // Your API call to update status
-    // This will be implemented with your ApiPhp class
-    print('Updating status to: $newStatus');
-
-    // After successful update:
-    onStatusUpdated();
-  }
-
-  String _formatDate(String? dateStr) {
-    if (dateStr == null || dateStr.isEmpty) return 'N/A';
+  String _formatDate(String? date) {
+    if (date == null || date.isEmpty) return 'N/A';
     try {
-      final date = DateTime.parse(dateStr);
-      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      final d = DateTime.parse(date);
+      return '${d.day}/${d.month}/${d.year}';
     } catch (e) {
-      return dateStr;
+      return date;
     }
   }
 
-  String _formatDateTime(String? dateStr) {
-    if (dateStr == null || dateStr.isEmpty) return 'N/A';
-    try {
-      final date = DateTime.parse(dateStr);
-      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-    } catch (e) {
-      return dateStr;
-    }
-  }
-
-  Color _getStatusColor() {
-    final status = report['overall_status']?.toString().toUpperCase();
-    switch (status) {
+  Color _getStatusColor(String? status) {
+    switch (status?.toUpperCase()) {
       case 'PASSED':
-        return Colors.green;
+        return Colors.green[700]!;
       case 'FAILED':
-        return Colors.red;
+        return Colors.red[700]!;
       case 'PENDING':
-        return Colors.orange;
+        return Colors.orange[700]!;
       default:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getStatusIcon() {
-    final status = report['overall_status']?.toString().toUpperCase();
-    switch (status) {
-      case 'PASSED':
-        return Icons.check_circle;
-      case 'FAILED':
-        return Icons.cancel;
-      case 'PENDING':
-        return Icons.pending;
-      default:
-        return Icons.help;
+        return Colors.grey[700]!;
     }
   }
 }

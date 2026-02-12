@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:bfp_record_mapping/api/api_key.dart';
 import 'package:bfp_record_mapping/screens/app_theme.dart';
 import 'package:bfp_record_mapping/screens/web_screen/report_details.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -19,7 +22,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   @override
   void initState() {
     super.initState();
-    loadBrgyData();
+    _fetchReports();
   }
 
   @override
@@ -29,14 +32,76 @@ class _ReportsScreenState extends State<ReportsScreen> {
     super.dispose();
   }
 
-  void loadBrgyData() async {
-    final result = await ApiPhp(tableName: "inspection_reports").select();
-
-    reportsData = List.from(result["data"]);
-    print("reportsData $reportsData");
+  Future<void> _fetchReports() async {
     setState(() {
-      isLoading = false;
+      isLoading = true;
     });
+    try {
+      final response = await ApiPhp(
+        tableName: "inspection_reports",
+      ).select(subURl: 'https://luvpark.ph/luvtest/mapping/reports_list.php');
+      print("response $response");
+      if (response["success"]) {
+        setState(() {
+          reportsData = response["data"] ?? [];
+        });
+      }
+      setState(() {
+        isLoading = false;
+      });
+    } catch (e) {
+      print('Error: $e');
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _fetchReportDetails(int reportId) async {
+    try {
+      // 🔴 DON'T use ApiPhp - it's corrupting your response!
+      final url = Uri.parse(
+        'https://luvpark.ph/luvtest/mapping/report_details.php',
+      );
+
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'data': {'report_id': reportId},
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+
+        print('🔥 RAW API RESPONSE: ${jsonResponse.keys}');
+
+        if (jsonResponse["success"] == true) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ReportDetailsScreen(
+                report: jsonResponse, // Pass the raw JSON response
+                onStatusUpdated: _fetchReports,
+              ),
+            ),
+          );
+        } else {
+          throw Exception(jsonResponse["message"] ?? 'Failed to fetch');
+        }
+      } else {
+        throw Exception('HTTP ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -255,16 +320,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   void _navigateToReportDetails(Map<String, dynamic> report) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ReportDetailsScreen(
-          report: report, // Pass the entire report object
-          onStatusUpdated: () {
-            // Refresh your reports list when status is updated
-          },
-        ),
-      ),
-    );
+    _fetchReportDetails(report["report_id"]);
   }
 }

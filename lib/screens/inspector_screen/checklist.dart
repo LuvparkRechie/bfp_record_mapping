@@ -1760,7 +1760,6 @@ class _ChecklistPageState extends State<ChecklistPage> {
         'RPT-${timestamp.year}${timestamp.month.toString().padLeft(2, '0')}${timestamp.day.toString().padLeft(2, '0')}-'
         '${timestamp.hour.toString().padLeft(2, '0')}${timestamp.minute.toString().padLeft(2, '0')}${timestamp.second.toString().padLeft(2, '0')}';
 
-    // 4. PREPARE REPORT DATA - THIS GOES TO inspection_reports TABLE
     final reportData = {
       'report_no': reportNo,
       'building_name': "Homeworld",
@@ -1768,18 +1767,17 @@ class _ChecklistPageState extends State<ChecklistPage> {
       'inspector_name': 'Inspector Name', // TODO: Get from session
       'inspection_date': DateTime.now().toString().split(' ')[0],
       'submission_date': DateTime.now().toString().split('.')[0],
-      'status': 'pending',
+      'status': 'PENDING',
       'total_items': _checklist.length,
       'passed_items': passedCount,
       'failed_items': failedCount,
       'na_items': naCount,
       'overall_status': overallStatus,
       'notes': 'Inspection completed via mobile app',
-      'answers': jsonEncode(
-        checklistAnswers,
-      ), // ✅ CORRECT - encode the entire checklist data
+      'answers': jsonEncode(checklistAnswers),
       'establishment_id': widget.establishmentId,
-      'inspector_id': 4, // TODO: Get from session
+      'inspector_id': 4, // T
+      'inspection_id': widget.inspectionId,
     };
 
     print('Checklist Answers: ${checklistAnswers.length} items');

@@ -215,7 +215,7 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
                           'schedule_date': _selectedScheduleDate != null
                               ? _selectedScheduleDate.toString().split('.')[0]
                               : '', // convert DateTime to string or empty
-                          'status': 'Pending',
+                          'status': 'PENDING',
                         };
 
                         // Remove any null or empty fields if you want PHP to handle defaults
