@@ -247,8 +247,9 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
                                             ),
                                           ),
                                           child: TextButton(
-                                            onPressed: () {
-                                              Navigator.push(
+                                            onPressed: () async {
+                                              // ✅ MODIFIED: Use await and check result
+                                              final result = await Navigator.push(
                                                 context,
                                                 MaterialPageRoute(
                                                   builder: (_) => ChecklistPage(
@@ -259,6 +260,11 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
                                                   ),
                                                 ),
                                               );
+
+                                              // ✅ ADD THIS: Refresh if user came back from submission
+                                              if (result == true) {
+                                                getAssignedSTask();
+                                              }
                                             },
                                             style: TextButton.styleFrom(
                                               padding: EdgeInsets.zero,

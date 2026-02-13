@@ -1,3 +1,4 @@
+import 'package:bfp_record_mapping/api/api_key.dart';
 import 'package:flutter/material.dart';
 
 class ReportDetailsScreen extends StatelessWidget {
@@ -121,10 +122,15 @@ class ReportDetailsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // Checklist Sections - JUST THE QUESTIONS AND ANSWERS
+                // Checklist Sections
                 ...groupedAnswers.entries.map(
                   (entry) => _buildSection(entry.key, entry.value),
                 ),
+
+                // ✅ APPROVE/DECLINE BUTTONS
+                const SizedBox(height: 24),
+                _buildActionButtons(reportData, context),
+                const SizedBox(height: 30),
               ],
             ),
     );
@@ -147,6 +153,34 @@ class ReportDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildSection(String sectionName, List items) {
+    // ✅ FILTER OUT DUPLICATE CHECKBOXES THAT HAVE NO VALUE
+    final filteredItems = items.where((item) {
+      final key = item['key'] ?? '';
+      final value = item['value'];
+
+      // ✅ KEEP text_ fields (they have the answers)
+      if (key.startsWith('text_')) return true;
+
+      // ✅ KEEP checkbox groups (multiple options)
+      if (key.startsWith('checkbox_') && value is List && value.length > 1) {
+        return true;
+      }
+
+      // ✅ KEEP checkbox if it's the only one AND it has a value (true/false matters)
+      if (key.startsWith('checkbox_') && value is List && value.length == 1) {
+        // BUT HIDE if there's a corresponding text_ field with the same ID
+        final id = key.split('_').last;
+        final hasTextField = items.any((i) => i['key'] == 'text_$id');
+        return !hasTextField; // Only show if NO matching text field exists
+      }
+
+      // ❌ HIDE everything else (duplicate checkboxes)
+      return false;
+    }).toList();
+
+    // If no items left after filtering, don't show the section
+    if (filteredItems.isEmpty) return const SizedBox.shrink();
+
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       child: Column(
@@ -163,8 +197,8 @@ class ReportDetailsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
 
-          // Questions
-          ...items.map(
+          // Questions - ONLY the filtered ones
+          ...filteredItems.map(
             (item) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: _buildQuestion(item),
@@ -178,8 +212,28 @@ class ReportDetailsScreen extends StatelessWidget {
   Widget _buildQuestion(Map<String, dynamic> item) {
     final type = item['type'] ?? '';
     final value = item['value'];
-    final question = item['item_text'] ?? 'Unknown Item';
+    var question = item['item_text'] ?? 'Unknown Item';
     final options = item['checkbox_options'] as List?;
+
+    // ✅ REMOVE ALL UNDERSCORES AND DASHES
+    question = question
+        .replaceAll('__________________________', '')
+        .replaceAll('________________', '')
+        .replaceAll('__________', '')
+        .replaceAll('____________', '')
+        .replaceAll('_________', '')
+        .replaceAll('________', '')
+        .replaceAll('_______', '')
+        .replaceAll('______', '')
+        .replaceAll('_____', '')
+        .replaceAll('____', '')
+        .replaceAll('___', '')
+        .replaceAll('__', '')
+        .replaceAll('_', '')
+        .replaceAll('---', '')
+        .replaceAll('--', '')
+        .replaceAll('-', '')
+        .trim();
 
     // TEXT INPUT
     if (type.contains('text')) {
@@ -314,6 +368,192 @@ class ReportDetailsScreen extends StatelessWidget {
     }
 
     return const SizedBox.shrink();
+  }
+
+  // ✅ RECOMMENDED - Clean Ghost Buttons for Web
+  Widget _buildActionButtons(
+    Map<String, dynamic> report,
+    BuildContext context,
+  ) {
+    final currentStatus =
+        report['overall_status']?.toString().toUpperCase() ?? 'PENDING';
+    final reportId = report['report_id']; // Get the report ID
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 0),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: Colors.grey[200]!, width: 1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Review Report',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _approveReport(reportId, context),
+                  icon: Icon(Icons.check_circle_outline, size: 18),
+                  label: const Text('Approve'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.green[700],
+                    side: BorderSide(
+                      color: Colors.green[700]!.withOpacity(0.5),
+                      width: 1,
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    disabledForegroundColor: Colors.grey[400],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: currentStatus != 'FAILED'
+                      ? () => _declineReport(reportId, context)
+                      : null,
+                  icon: Icon(Icons.cancel_outlined, size: 18),
+                  label: const Text('Decline'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red[700],
+                    side: BorderSide(
+                      color: Colors.red[700]!.withOpacity(0.5),
+                      width: 1,
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    disabledForegroundColor: Colors.grey[400],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: currentStatus != 'PENDING'
+                      ? () => _pendingReport(reportId, context)
+                      : null,
+                  icon: Icon(Icons.access_time, size: 18),
+                  label: const Text('Pending'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.orange[700],
+                    side: BorderSide(
+                      color: Colors.orange[700]!.withOpacity(0.5),
+                      width: 1,
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    disabledForegroundColor: Colors.grey[400],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ APPROVE REPORT - Updates both tables
+  Future<void> _approveReport(int? reportId, BuildContext context) async {
+    print("reportId $reportId");
+    if (reportId == null) return;
+
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final response =
+          await ApiPhp(
+            tableName: "inspection_reports",
+            parameters: {'report_id': reportId},
+          ).update(
+            subUrl: 'https://luvpark.ph/luvtest/mapping/approve_reports.php',
+          );
+
+      // Close loading dialog
+      Navigator.pop(context);
+
+      print('Approve response: $response');
+
+      if (response["success"] == true) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✓ Report approved successfully'),
+            backgroundColor: Colors.green[700],
+            duration: const Duration(seconds: 2),
+          ),
+        );
+
+        // Refresh the reports list
+        onStatusUpdated();
+
+        // Close the details screen and go back
+        Navigator.pop(context);
+      } else {
+        throw Exception(response["message"] ?? 'Failed to approve');
+      }
+    } catch (e) {
+      // Close loading dialog if error
+      Navigator.pop(context);
+
+      print('Error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red[700],
+        ),
+      );
+    }
+  }
+
+  // ✅ DECLINE REPORT
+  Future<void> _declineReport(int? reportId, BuildContext context) async {
+    if (reportId == null) return;
+
+    // TODO: Implement decline API call
+    print('Declining report: $reportId');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Decline functionality coming soon'),
+        backgroundColor: Colors.orange[700],
+      ),
+    );
+    onStatusUpdated();
+  }
+
+  // ✅ PENDING REPORT
+  Future<void> _pendingReport(int? reportId, BuildContext context) async {
+    if (reportId == null) return;
+
+    // TODO: Implement pending API call
+    print('Marking as pending: $reportId');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Marked as pending'),
+        backgroundColor: Colors.orange[700],
+      ),
+    );
+    onStatusUpdated();
   }
 
   String _formatDate(String? date) {

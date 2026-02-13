@@ -40,10 +40,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
       final response = await ApiPhp(
         tableName: "inspection_reports",
       ).select(subURl: 'https://luvpark.ph/luvtest/mapping/reports_list.php');
-      print("response $response");
+
       if (response["success"]) {
+        List data = response["data"];
         setState(() {
-          reportsData = response["data"] ?? [];
+          reportsData = data.isEmpty
+              ? []
+              : data.where((report) => report["status"] == "PENDING").toList();
         });
       }
       setState(() {

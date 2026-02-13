@@ -1806,7 +1806,19 @@ class _ChecklistPageState extends State<ChecklistPage> {
         tableName: "inspection_reports",
         parameters: reportData,
       ).insert(subUrl: 'https://luvpark.ph/luvtest/mapping/save_checklist.php');
-      print("response $response");
+      if (response["success"]) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✓ Inspection submitted successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // Close this screen and go back to assigned tasks
+        Navigator.pop(context, true); // Pass true to indicate success
+      }
       return response;
     } catch (e) {
       print('Submission error: $e');

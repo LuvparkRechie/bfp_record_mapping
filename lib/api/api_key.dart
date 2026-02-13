@@ -223,10 +223,10 @@ class ApiPhp {
   // -------------------------------
   // UPDATE operation
   // -------------------------------
-  Future<Map<String, dynamic>> update() async {
+  Future<Map<String, dynamic>> update({subUrl}) async {
     return await _handleRequest(
       http.post(
-        Uri.parse(baseUrl),
+        Uri.parse(subUrl ?? baseUrl),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'table': tableName,
