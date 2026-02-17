@@ -827,7 +827,7 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
                                           },
 
                                           icon: Icon(
-                                            Icons.assignment_add,
+                                            Icons.person_add,
                                             size: 20,
                                           ),
                                           color: Colors.grey[600],
@@ -990,8 +990,8 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
           'occupancy_type': _occupancyTypeController.text,
           'floor_area': double.tryParse(_floorAreaController.text),
           'no_of_storeys': int.tryParse(_storeysController.text),
-          'latitude': double.tryParse(_latitudeController.text),
-          'longitude': double.tryParse(_longitudeController.text),
+          'latitude': "",
+          'longitude': "",
           'establishment_status': _selectedStatus,
           'fsic_file_path': "",
           'fsic_expiry': "",
@@ -1083,19 +1083,6 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
                         style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       ),
                     ],
-                  ),
-                ),
-                ElevatedButton.icon(
-                  onPressed: _submitForm,
-                  icon: Icon(Icons.save, size: 20),
-                  label: Text('Save'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[700],
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
                   ),
                 ),
               ],
@@ -1264,126 +1251,6 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
 
                       SizedBox(height: 40),
 
-                      // Coordinates Section
-                      _buildSectionHeader(
-                        icon: Icons.map,
-                        title: 'Coordinates',
-                      ),
-                      SizedBox(height: 20),
-
-                      Wrap(
-                        spacing: 20,
-                        runSpacing: 20,
-                        children: [
-                          _buildTextField(
-                            controller: _latitudeController,
-                            label: 'Latitude',
-                            width: 200,
-                            keyboardType: TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                RegExp(r'^-?\d*\.?\d*'),
-                              ),
-                            ],
-                          ),
-                          _buildTextField(
-                            controller: _longitudeController,
-                            label: 'Longitude',
-                            width: 200,
-                            keyboardType: TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                RegExp(r'^-?\d*\.?\d*'),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-
-                      SizedBox(height: 40),
-
-                      // Document Uploads Section
-                      _buildSectionHeader(
-                        icon: Icons.attach_file,
-                        title: 'Document Uploads',
-                      ),
-                      SizedBox(height: 20),
-
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildFileUploadRow(
-                            label: 'FSIC File',
-                            filePath: _fsicFilePath,
-                            onPressed: () => _pickFile('fsic'),
-                          ),
-                          SizedBox(height: 16),
-
-                          _buildTextField(
-                            controller: _fsicExpiryController,
-                            label: 'FSIC Expiry Date',
-                            width: 300,
-                            readOnly: true,
-                            suffixIcon: IconButton(
-                              icon: Icon(Icons.calendar_today, size: 20),
-                              onPressed: () => _selectDate(context),
-                            ),
-                          ),
-
-                          SizedBox(height: 20),
-                          _buildFileUploadRow(
-                            label: 'CRO File',
-                            filePath: _croFilePath,
-                            onPressed: () => _pickFile('cro'),
-                          ),
-
-                          SizedBox(height: 20),
-                          _buildFileUploadRow(
-                            label: 'FCA File',
-                            filePath: _fcaFilePath,
-                            onPressed: () => _pickFile('fca'),
-                          ),
-                        ],
-                      ),
-
-                      SizedBox(height: 40),
-
-                      // Status Section
-                      _buildSectionHeader(
-                        icon: Icons.settings,
-                        title: 'Status',
-                      ),
-                      SizedBox(height: 20),
-
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          'Active Establishment',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[800],
-                          ),
-                        ),
-                        subtitle: Text(
-                          'Deactivate to temporarily hide this establishment',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        value: _isActive,
-                        onChanged: (value) {
-                          setState(() => _isActive = value);
-                        },
-                        activeColor: Colors.blue[700],
-                      ),
-
-                      SizedBox(height: 40),
-
                       // Action Buttons
                       Container(
                         padding: EdgeInsets.symmetric(vertical: 20),
@@ -1397,7 +1264,6 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
                           children: [
                             OutlinedButton(
                               onPressed: _resetForm,
-                              child: Text('Reset Form'),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.grey[700],
                                 side: BorderSide(color: Colors.grey[400]!),
@@ -1409,11 +1275,11 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
+                              child: Text('Reset Form'),
                             ),
                             SizedBox(width: 16),
                             ElevatedButton(
                               onPressed: _submitForm,
-                              child: Text('Save Establishment'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blue[700],
                                 foregroundColor: Colors.white,
@@ -1425,6 +1291,7 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
+                              child: Text('Save Establishment'),
                             ),
                           ],
                         ),

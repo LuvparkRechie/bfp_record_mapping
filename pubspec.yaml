@@ -42,6 +42,9 @@ dependencies:
   image_picker: ^1.2.1
   file_picker: ^10.3.10
   flutter_auto_size_text: ^4.1.0
+  location: ^8.0.1
+  url_launcher: ^6.3.2
+  url_launcher_windows: ^3.1.5
 
 dev_dependencies:
   flutter_test:

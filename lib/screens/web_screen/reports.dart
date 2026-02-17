@@ -114,6 +114,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         : Container(
             color: Colors.white,
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Top Bar
                 Container(
@@ -207,43 +208,30 @@ class _ReportsScreenState extends State<ReportsScreen> {
                               return DataRow(
                                 cells: [
                                   DataCell(
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[50],
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        '#${reports["report_no"]}',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.black,
-                                        ),
+                                    Text(
+                                      '#${reports["report_no"]}',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black,
                                       ),
                                     ),
                                   ),
                                   DataCell(
-                                    SizedBox(
-                                      width: 180,
-                                      child: Text(
-                                        reports['building_name'],
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.grey[900],
-                                        ),
+                                    Text(
+                                      reports['building_name'],
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.grey[900],
                                       ),
                                     ),
                                   ),
                                   DataCell(
-                                    SizedBox(
-                                      width: 200,
-                                      child: Text(
-                                        reports['building_address'],
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.black,
-                                        ),
+                                    Text(
+                                      reports['building_address'],
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black,
                                       ),
                                     ),
                                   ),
@@ -257,38 +245,21 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                     ),
                                   ),
                                   DataCell(
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 6,
-                                      ),
-                                      // decoration: BoxDecoration(
-                                      //   color: _getRoleColor(user['role']),
-                                      //   borderRadius: BorderRadius.circular(20),
-                                      // ),
-                                      child: Text(
-                                        "${reports['submission_date']}",
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.black,
-                                        ),
+                                    Text(
+                                      "${reports['submission_date']}",
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black,
                                       ),
                                     ),
                                   ),
 
                                   DataCell(
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 6,
-                                      ),
-
-                                      child: Text(
-                                        "${reports['status']}",
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.black,
-                                        ),
+                                    Text(
+                                      "${reports['status']}",
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black,
                                       ),
                                     ),
                                   ),

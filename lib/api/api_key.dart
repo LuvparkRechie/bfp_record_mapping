@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
@@ -349,6 +351,76 @@ class ApiPhp {
       }
     } catch (e) {
       return {"success": false, "message": "Submission error: ${e.toString()}"};
+    }
+  }
+
+  static Future<Map<String, dynamic>> uploadEstablishmentDocument({
+    required dynamic file, // Can be String path or FilePickerResult
+    required int establishmentId,
+    required String documentType,
+    String? expiryDate,
+  }) async {
+    final uri = Uri.parse("https://luvpark.ph/luvtest/mapping/upload_file.php");
+
+    var request = http.MultipartRequest('POST', uri);
+
+    late List<int> bytes;
+    late String filename;
+
+    // Handle different input types
+    if (file is FilePickerResult) {
+      // Web: Use bytes directly from FilePickerResult
+      final pickedFile = file.files.single;
+      bytes = pickedFile.bytes!;
+      filename = pickedFile.name;
+    } else if (file is String) {
+      // Mobile: Read from file path
+      final fileObj = File(file);
+      bytes = await fileObj.readAsBytes();
+      filename = file.split('/').last;
+    } else {
+      return {"success": false, "message": "Invalid file format"};
+    }
+
+    // Add file using fromBytes (works on web)
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: filename,
+        contentType: http.MediaType('application', 'octet-stream'),
+      ),
+    );
+
+    // Add fields
+    request.fields['establishment_id'] = establishmentId.toString();
+    request.fields['document_type'] = documentType;
+
+    // Only add expiry_date for FSIC and if provided
+    if (documentType == 'fsic' && expiryDate != null) {
+      request.fields['expiry_date'] = expiryDate;
+    }
+
+    try {
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final body = json.decode(response.body);
+        return {
+          "success": body["success"],
+          "message": body["message"] ?? "Upload successful",
+          "file_path": body["file_path"],
+          "file_name": body["file_name"],
+        };
+      } else {
+        return {
+          "success": false,
+          "message": "Upload failed with status: ${response.statusCode}",
+        };
+      }
+    } catch (e) {
+      return {"success": false, "message": "Upload error: ${e.toString()}"};
     }
   }
 

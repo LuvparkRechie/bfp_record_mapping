@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:bfp_record_mapping/api/api_key.dart';
+import 'package:bfp_record_mapping/functions.dart';
 import 'package:flutter/material.dart';
 
 class ChecklistPage extends StatefulWidget {
@@ -73,7 +74,6 @@ class _ChecklistPageState extends State<ChecklistPage> {
           _checklist = List<dynamic>.from(data);
           _loading = false;
           _initializeControllers();
-          print('Loaded ${_checklist.length} items');
         });
       } else {
         throw Exception(response["message"] ?? "Unknown error");
@@ -96,19 +96,16 @@ class _ChecklistPageState extends State<ChecklistPage> {
       // Initialize based on field type
       switch (fieldType) {
         case 'inline_text':
-        case 'inline_date':
+        case 'inline_date': // FIXED: Initialize date controllers
         case 'inline_text_with_date':
         case 'inline_checkbox_with_text':
-          _checkboxGroupValues[id] = [false];
-          // Initialize text controller with the id
-          _textControllers[id] = TextEditingController();
-          break;
         case 'multiline_text':
         case 'inline_number':
         case 'text':
         case 'textarea':
-        case 'date':
+        case 'date': // FIXED: Initialize date controllers
           _textControllers[id] = TextEditingController();
+          print('Initialized controller for $id ($fieldType)');
           break;
 
         case 'hybrid_measurement_passfail':
@@ -140,29 +137,34 @@ class _ChecklistPageState extends State<ChecklistPage> {
           break;
 
         case 'inline_checkbox_group':
-          // Special handling for inline_checkbox_group
-          // Parse the text to count how many checkboxes
           final items = itemText.split('/');
           int checkboxCount = 0;
-
           for (var textItem in items) {
             final cleanItem = textItem.replaceAll('[   ]', '').trim();
             if (cleanItem.isNotEmpty) {
               checkboxCount++;
             }
           }
-
-          // Initialize with the correct number of checkboxes
           _checkboxGroupValues[id] = List<bool>.filled(
-            checkboxCount > 0
-                ? checkboxCount
-                : 2, // Default to 2 if parsing fails
+            checkboxCount > 0 ? checkboxCount : 2,
             false,
           );
-        // In the _buildChecklistItem method, add this to the switch statement:
-        case 'label':
-          _buildLabel(text: itemText);
           break;
+
+        case 'label':
+          // No controller needed
+          break;
+      }
+    }
+
+    // Special handling for inline_text_with_date which needs two controllers
+    for (var item in _checklist) {
+      final String id = _getId(item);
+      final String fieldType = _getFieldType(item);
+      if (fieldType == 'inline_text_with_date') {
+        _textControllers['${id}_text'] = TextEditingController();
+        _textControllers['${id}_date'] = TextEditingController();
+        print('Initialized text_with_date controllers for $id');
       }
     }
   }
@@ -210,7 +212,241 @@ class _ChecklistPageState extends State<ChecklistPage> {
   }
 
   // ============================================
-  // DYNAMIC FIELD TYPE HANDLERS
+  // FIXED: Date selection method
+  // ============================================
+  Future<void> _selectDate(String id, BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+
+    if (picked != null) {
+      setState(() {
+        // Format date as dd/MM/yyyy
+        final formattedDate =
+            "${picked.day.toString().padLeft(2, '0')}/"
+            "${picked.month.toString().padLeft(2, '0')}/"
+            "${picked.year}";
+
+        // Set the text in the controller
+        if (_textControllers.containsKey(id)) {
+          _textControllers[id]?.text = formattedDate;
+          print('Date set for $id: $formattedDate');
+        } else {
+          print('ERROR: Controller not found for $id');
+        }
+      });
+    }
+  }
+
+  // ============================================
+  // FIXED: Date field builders
+  // ============================================
+  Widget _buildInlineDateField({required String id, required String text}) {
+    // Ensure controller exists
+    if (!_textControllers.containsKey(id)) {
+      _textControllers[id] = TextEditingController();
+      print('Created missing controller for $id in _buildInlineDateField');
+    }
+
+    final parts = text.split('________________');
+    final label = parts[0].trim();
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 8),
+            InkWell(
+              onTap: () => _selectDate(id, context),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _textControllers[id]?.text.isEmpty ?? true
+                            ? 'Select date'
+                            : _textControllers[id]!.text,
+                        style: TextStyle(
+                          color: _textControllers[id]?.text.isEmpty ?? true
+                              ? Colors.grey
+                              : Colors.black,
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.calendar_today,
+                      size: 20,
+                      color: Colors.grey,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateField({required String id, required String text}) {
+    // Ensure controller exists
+    if (!_textControllers.containsKey(id)) {
+      _textControllers[id] = TextEditingController();
+      print('Created missing controller for $id in _buildDateField');
+    }
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              text,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _textControllers[id],
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                suffixIcon: Icon(Icons.calendar_today),
+                hintText: 'Select date',
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 16,
+                ),
+              ),
+              readOnly: true,
+              onTap: () => _selectDate(id, context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInlineTextWithDate({required String id, required String text}) {
+    // Ensure controllers exist
+    final textId = '${id}_text';
+    final dateId = '${id}_date';
+
+    if (!_textControllers.containsKey(textId)) {
+      _textControllers[textId] = TextEditingController();
+    }
+    if (!_textControllers.containsKey(dateId)) {
+      _textControllers[dateId] = TextEditingController();
+    }
+
+    final parts = text.split('Date Issued');
+    final textLabel = parts[0].replaceAll('-', '').trim();
+    final dateLabel = 'Date Issued${parts.length > 1 ? parts[1] : ''}';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('- ', style: TextStyle(fontSize: 14)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        textLabel,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _textControllers[textId],
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.all(12),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        dateLabel,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: () => _selectDate(dateId, context),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _textControllers[dateId]?.text.isEmpty ?? true
+                                      ? 'Select date'
+                                      : _textControllers[dateId]!.text,
+                                  style: TextStyle(
+                                    color:
+                                        _textControllers[dateId]
+                                                ?.text
+                                                .isEmpty ??
+                                            true
+                                        ? Colors.grey
+                                        : Colors.black,
+                                  ),
+                                ),
+                              ),
+                              const Icon(
+                                Icons.calendar_today,
+                                size: 20,
+                                color: Colors.grey,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================
+  // Other widget builders (keep your existing ones)
   // ============================================
   Widget _buildLabel({required String text}) {
     return Container(
@@ -233,20 +469,15 @@ class _ChecklistPageState extends State<ChecklistPage> {
     final String itemText = _getString(item, 'item_text') ?? '';
     final String section = _getString(item, 'section') ?? '';
 
-    // Dynamic field type handling
     switch (fieldType) {
-      // Headers
       case 'section_header':
         return _buildSectionHeader(itemText);
       case 'sub_section_header':
         return _buildSubSectionHeader(itemText);
       case 'label':
         return _buildLabel(text: itemText);
-      // Notes
       case 'note':
         return _buildNote(text: itemText);
-
-      // Text fields
       case 'inline_text':
         return _buildInlineTextField(id: id, text: itemText);
       case 'text':
@@ -255,24 +486,16 @@ class _ChecklistPageState extends State<ChecklistPage> {
         return _buildTextArea(id: id, text: itemText);
       case 'multiline_text':
         return _buildMultilineText(id: id, text: itemText);
-
-      // Date fields
-      case 'inline_date':
+      case 'inline_date': // FIXED: Using updated builder
         return _buildInlineDateField(id: id, text: itemText);
-      case 'date':
+      case 'date': // FIXED: Using updated builder
         return _buildDateField(id: id, text: itemText);
-
-      // Number fields
       case 'inline_number':
         return _buildInlineNumber(id: id, text: itemText);
-
-      // Checkboxes
       case 'inline_checkbox':
         return _buildInlineCheckbox(id: id, text: itemText);
       case 'checkbox':
         return _buildSingleCheckbox(id: id, text: itemText);
-
-      // Checkbox groups
       case 'inline_checkbox_group':
         return _buildInlineCheckboxGroup(id: id, text: itemText);
       case 'checkbox_group':
@@ -282,18 +505,14 @@ class _ChecklistPageState extends State<ChecklistPage> {
           text: itemText,
           options: options ?? ['Passed', 'Failed'],
         );
-
-      // Combined fields
       case 'inline_checkbox_with_text':
         return _buildInlineCheckboxWithText(id: id, text: itemText);
-      case 'inline_text_with_date':
+      case 'inline_text_with_date': // FIXED: Using updated builder
         return _buildInlineTextWithDate(id: id, text: itemText);
       case 'inline_yes_no':
         return _buildInlineYesNo(id: id, text: itemText);
       case 'text_with_checkbox':
         return _buildTextWithCheckbox(id: id, text: itemText);
-
-      // Measurement fields
       case 'hybrid_measurement_passfail':
         return _buildHybridMeasurementPassFail(
           id: id,
@@ -310,25 +529,16 @@ class _ChecklistPageState extends State<ChecklistPage> {
               _getString(item, 'measurement_label') ?? 'Actual Dimensions',
           measurementUnit: _getString(item, 'measurement_unit'),
         );
-
-      // Tables
       case 'table_header':
         return _buildTableHeader();
-
-      // Signature
       case 'signature':
         return _buildSignatureField(id: id, text: itemText);
-
       default:
         return _buildSingleCheckbox(id: id, text: itemText);
     }
   }
 
-  // ============================================
-  // WIDGET BUILDERS
-  // ============================================
-
-  // Headers
+  // Keep your existing widget builders below (they don't need changes)
   Widget _buildSectionHeader(String text) {
     return Container(
       width: double.infinity,
@@ -369,7 +579,6 @@ class _ChecklistPageState extends State<ChecklistPage> {
     );
   }
 
-  // Notes
   Widget _buildNote({required String text}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
@@ -384,9 +593,7 @@ class _ChecklistPageState extends State<ChecklistPage> {
     );
   }
 
-  // Text Fields
   Widget _buildInlineTextField({required String id, required String text}) {
-    // Split text to get label and placeholder
     final parts = text.split('________________');
     final label = parts[0].trim();
     final placeholder = parts.length > 1 ? parts[1].trim() : '';
@@ -398,15 +605,11 @@ class _ChecklistPageState extends State<ChecklistPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Label above
             Text(
               label,
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
             ),
-
             const SizedBox(height: 8),
-
-            // Text field below
             TextField(
               controller: _textControllers[id] ??= TextEditingController(),
               decoration: InputDecoration(
@@ -435,7 +638,7 @@ class _ChecklistPageState extends State<ChecklistPage> {
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: _textControllers[id],
+              controller: _textControllers[id] ??= TextEditingController(),
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 hintText: 'Enter text here...',
@@ -465,7 +668,7 @@ class _ChecklistPageState extends State<ChecklistPage> {
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: _textControllers[id],
+              controller: _textControllers[id] ??= TextEditingController(),
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 hintText: 'Enter detailed information...',
@@ -499,7 +702,7 @@ class _ChecklistPageState extends State<ChecklistPage> {
             ),
             const SizedBox(height: 8),
             TextField(
-              controller: _textControllers[id],
+              controller: _textControllers[id] ??= TextEditingController(),
               decoration: InputDecoration(
                 hintText: 'Enter usage details for $label...',
                 border: const OutlineInputBorder(),
@@ -514,99 +717,7 @@ class _ChecklistPageState extends State<ChecklistPage> {
     );
   }
 
-  Widget _buildInlineDateField({required String id, required String text}) {
-    final parts = text.split('________________');
-    final label = parts[0].trim();
-
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Label above
-            Text(
-              label,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-            ),
-
-            const SizedBox(height: 8),
-
-            // Date field below
-            InkWell(
-              onTap: () => _selectDate(id, context),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _textControllers[id]?.text.isEmpty ?? true
-                            ? 'Select date'
-                            : _textControllers[id]!.text,
-                        style: TextStyle(
-                          color: _textControllers[id]?.text.isEmpty ?? true
-                              ? Colors.grey
-                              : Colors.black,
-                        ),
-                      ),
-                    ),
-                    const Icon(
-                      Icons.calendar_today,
-                      size: 20,
-                      color: Colors.grey,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDateField({required String id, required String text}) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              text,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _textControllers[id],
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                suffixIcon: Icon(Icons.calendar_today),
-                hintText: 'Select date',
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 16,
-                ),
-              ),
-              readOnly: true,
-              onTap: () => _selectDate(id, context),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildInlineNumber({required String id, required String text}) {
-    // Parse text like "Maximum Occupant Load: __________P/Floor"
     final parts = text.split('__________');
     final label = parts[0].trim();
     final suffix = parts.length > 1 ? parts[1] : '';
@@ -618,15 +729,11 @@ class _ChecklistPageState extends State<ChecklistPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Label above
             Text(
               label,
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
             ),
-
             const SizedBox(height: 8),
-
-            // Number input below
             TextField(
               controller: _textControllers[id] ??= TextEditingController(),
               decoration: InputDecoration(
@@ -644,7 +751,6 @@ class _ChecklistPageState extends State<ChecklistPage> {
   }
 
   Widget _buildInlineCheckbox({required String id, required String text}) {
-    // Remove [   ] placeholder from text
     final displayText = text.replaceAll('[   ]', '').trim();
 
     return Card(
@@ -653,7 +759,6 @@ class _ChecklistPageState extends State<ChecklistPage> {
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            // Checkbox
             Checkbox(
               value: _checkboxGroupValues[id]?[0] ?? false,
               onChanged: (value) {
@@ -664,8 +769,6 @@ class _ChecklistPageState extends State<ChecklistPage> {
                 });
               },
             ),
-
-            // Text
             Expanded(
               child: Text(displayText, style: const TextStyle(fontSize: 14)),
             ),
@@ -675,23 +778,6 @@ class _ChecklistPageState extends State<ChecklistPage> {
     );
   }
 
-  // Widget _buildSingleCheckbox({required String id, required String text}) {
-  //   return Card(
-  //     margin: const EdgeInsets.symmetric(vertical: 8),
-  //     child: CheckboxListTile(
-  //       title: Text(text, style: const TextStyle(fontSize: 15)),
-  //       value: _checkboxGroupValues[id]?[0] ?? false,
-  //       onChanged: (value) {
-  //         setState(() {
-  //           if (_checkboxGroupValues[id] != null) {
-  //             _checkboxGroupValues[id]![0] = value ?? false;
-  //           }
-  //         });
-  //       },
-  //       controlAffinity: ListTileControlAffinity.leading,
-  //     ),
-  //   );
-  // }
   Widget _buildSingleCheckbox({required String id, required String text}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -716,7 +802,6 @@ class _ChecklistPageState extends State<ChecklistPage> {
     );
   }
 
-  // Checkbox Groups
   Widget _buildInlineCheckboxGroup({required String id, required String text}) {
     final items = text.split('/');
     final checkboxItems = <String>[];
@@ -848,8 +933,6 @@ class _ChecklistPageState extends State<ChecklistPage> {
     required String id,
     required String text,
   }) {
-    // Parse text like "[   ] Others (Specify) : ________________________________________________________________"
-    // Find where ":" is to separate checkbox label from textfield
     final colonIndex = text.indexOf(':');
     String checkboxLabel = '';
     String placeholder = '';
@@ -861,7 +944,6 @@ class _ChecklistPageState extends State<ChecklistPage> {
       checkboxLabel = text.trim();
     }
 
-    // Remove [   ] from checkbox label
     checkboxLabel = checkboxLabel.replaceAll('[   ]', '').trim();
 
     return Card(
@@ -873,12 +955,10 @@ class _ChecklistPageState extends State<ChecklistPage> {
           children: [
             Row(
               children: [
-                // Checkbox
                 Checkbox(
                   value: _checkboxGroupValues[id]?[0] ?? false,
                   onChanged: (value) {
                     setState(() {
-                      // Initialize if null
                       if (_checkboxGroupValues[id] == null) {
                         _checkboxGroupValues[id] = [false];
                       }
@@ -886,8 +966,6 @@ class _ChecklistPageState extends State<ChecklistPage> {
                     });
                   },
                 ),
-
-                // Checkbox label
                 Expanded(
                   child: Text(
                     checkboxLabel,
@@ -896,8 +974,6 @@ class _ChecklistPageState extends State<ChecklistPage> {
                 ),
               ],
             ),
-
-            // Text field (show only if checkbox is checked)
             if (_checkboxGroupValues[id]?[0] == true) ...[
               const SizedBox(height: 8),
               TextField(
@@ -912,111 +988,6 @@ class _ChecklistPageState extends State<ChecklistPage> {
                 ),
               ),
             ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInlineTextWithDate({required String id, required String text}) {
-    // Parse text like "- FSEC No. : ____________ Date Issued :_____________"
-    final parts = text.split('Date Issued');
-    final textLabel = parts[0].replaceAll('-', '').trim();
-    final dateLabel = 'Date Issued${parts.length > 1 ? parts[1] : ''}';
-
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Bullet point with label
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('- ', style: TextStyle(fontSize: 14)),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Text field section
-                      Text(
-                        textLabel,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      TextField(
-                        controller: _textControllers['${id}_text'] ??=
-                            TextEditingController(),
-                        decoration: const InputDecoration(
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.all(12),
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Date field section
-                      Text(
-                        dateLabel,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      InkWell(
-                        onTap: () => _selectDate('${id}_date', context),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  _textControllers['${id}_date']
-                                              ?.text
-                                              .isEmpty ??
-                                          true
-                                      ? 'Select date'
-                                      : _textControllers['${id}_date']!.text,
-                                  style: TextStyle(
-                                    color:
-                                        _textControllers['${id}_date']
-                                                ?.text
-                                                .isEmpty ??
-                                            true
-                                        ? Colors.grey
-                                        : Colors.black,
-                                  ),
-                                ),
-                              ),
-                              const Icon(
-                                Icons.calendar_today,
-                                size: 20,
-                                color: Colors.grey,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
       ),
@@ -1113,7 +1084,7 @@ class _ChecklistPageState extends State<ChecklistPage> {
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: _textControllers[id],
+              controller: _textControllers[id] ??= TextEditingController(),
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 hintText: 'Additional information...',
@@ -1129,7 +1100,6 @@ class _ChecklistPageState extends State<ChecklistPage> {
     );
   }
 
-  // Measurement Fields
   Widget _buildHybridMeasurementPassFail({
     required String id,
     required String text,
@@ -1149,7 +1119,8 @@ class _ChecklistPageState extends State<ChecklistPage> {
             ),
             const SizedBox(height: 16),
             TextField(
-              controller: _measurementControllers[id],
+              controller: _measurementControllers[id] ??=
+                  TextEditingController(),
               decoration: InputDecoration(
                 labelText: measurementLabel,
                 hintText: measurementUnit ?? 'Enter measurement',
@@ -1257,7 +1228,8 @@ class _ChecklistPageState extends State<ChecklistPage> {
             ),
             const SizedBox(height: 16),
             TextField(
-              controller: _measurementControllers[id],
+              controller: _measurementControllers[id] ??=
+                  TextEditingController(),
               decoration: InputDecoration(
                 labelText: measurementLabel,
                 hintText: measurementUnit ?? 'Enter measurement',
@@ -1342,7 +1314,7 @@ class _ChecklistPageState extends State<ChecklistPage> {
             ),
             const SizedBox(height: 16),
             TextField(
-              controller: _remarksControllers[id],
+              controller: _remarksControllers[id] ??= TextEditingController(),
               decoration: const InputDecoration(
                 labelText: 'Remarks / Corrective Action',
                 border: OutlineInputBorder(),
@@ -1360,7 +1332,6 @@ class _ChecklistPageState extends State<ChecklistPage> {
     );
   }
 
-  // Tables
   Widget _buildTableHeader() {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -1393,7 +1364,6 @@ class _ChecklistPageState extends State<ChecklistPage> {
     );
   }
 
-  // Signature
   Widget _buildSignatureField({required String id, required String text}) {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -1425,21 +1395,6 @@ class _ChecklistPageState extends State<ChecklistPage> {
         ),
       ),
     );
-  }
-
-  Future<void> _selectDate(String id, BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      setState(() {
-        _textControllers[id]?.text =
-            "${picked.day}/${picked.month}/${picked.year}";
-      });
-    }
   }
 
   void _showSignatureDialog(BuildContext context) {
@@ -1691,8 +1646,19 @@ class _ChecklistPageState extends State<ChecklistPage> {
     );
   }
 
-  void _saveChecklist() {
-    // 1. COLLECT CHECKLIST ANSWERS - this goes into 'answers' column
+  void _saveChecklist() async {
+    final coordinate = await Functions.getLocation();
+
+    if (coordinate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please enable location '),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
     final Map<String, dynamic> checklistAnswers = {};
 
     // Save text fields
@@ -1764,7 +1730,7 @@ class _ChecklistPageState extends State<ChecklistPage> {
       'report_no': reportNo,
       'building_name': "Homeworld",
       'building_address': "Libaong National high school",
-      'inspector_name': 'Inspector Name', // TODO: Get from session
+      'inspector_name': 'Inspector Name',
       'inspection_date': DateTime.now().toString().split(' ')[0],
       'submission_date': DateTime.now().toString().split('.')[0],
       'status': 'PENDING',
@@ -1778,13 +1744,10 @@ class _ChecklistPageState extends State<ChecklistPage> {
       'establishment_id': widget.establishmentId,
       'inspector_id': 4, // T
       'inspection_id': widget.inspectionId,
+      'latitude': coordinate.latitude,
+      'longitude': coordinate.longitude,
     };
 
-    print('Checklist Answers: ${checklistAnswers.length} items');
-    print('Checklist Answers Data: $checklistAnswers');
-    print('Report Data: $reportData');
-
-    // 5. SEND TO API
     _callSubmitApi(reportData);
   }
 
@@ -1800,12 +1763,12 @@ class _ChecklistPageState extends State<ChecklistPage> {
       }
 
       // Log the size
-      print('Answers JSON length: ${reportData['answers'].length} characters');
 
       final response = await ApiPhp(
         tableName: "inspection_reports",
         parameters: reportData,
       ).insert(subUrl: 'https://luvpark.ph/luvtest/mapping/save_checklist.php');
+      print('response $response');
       if (response["success"]) {
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(

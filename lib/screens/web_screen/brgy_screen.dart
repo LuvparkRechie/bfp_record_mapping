@@ -1,6 +1,12 @@
+// ignore: deprecated_member_use
+import 'dart:html';
+
 import 'package:bfp_record_mapping/api/api_key.dart';
 import 'package:bfp_record_mapping/screens/app_theme.dart';
-import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart' hide VoidCallback;
+import 'package:url_launcher/url_launcher.dart';
 
 class BrgyScreen extends StatefulWidget {
   const BrgyScreen({super.key});
@@ -443,13 +449,16 @@ class YearEstablishmentsScreen extends StatelessWidget {
               itemCount: establishments.length,
               itemBuilder: (context, index) {
                 final est = establishments[index];
-                return _buildEstablishmentCard(est);
+                return _buildEstablishmentCard(context, est);
               },
             ),
     );
   }
 
-  Widget _buildEstablishmentCard(Map<String, dynamic> est) {
+  Widget _buildEstablishmentCard(
+    BuildContext context,
+    Map<String, dynamic> est,
+  ) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
@@ -465,9 +474,50 @@ class YearEstablishmentsScreen extends StatelessWidget {
           ),
           child: Icon(Icons.business, color: Colors.green[700], size: 22),
         ),
-        title: Text(
-          est['business_name'] ?? 'Unknown Business',
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                est['business_name'] ?? 'Unknown Business',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            GestureDetector(
+              onTap: () {},
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.assignment, size: 14, color: Colors.blue[700]),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Reports',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.blue[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 10,
+                      color: Colors.blue[700],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -505,12 +555,34 @@ class YearEstablishmentsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Business Information Section
+                const Text(
+                  'BUSINESS INFORMATION',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 12),
                 _buildInfoRow('Owner', est['owner_name'] ?? 'N/A'),
                 _buildInfoRow('Contact', est['contact_number'] ?? 'N/A'),
                 _buildInfoRow('Occupancy', est['occupancy_type'] ?? 'N/A'),
                 _buildInfoRow('Floor Area', '${est['floor_area'] ?? 0} sqm'),
                 _buildInfoRow('Storeys', '${est['no_of_storeys'] ?? 0}'),
+
                 const Divider(height: 24),
+
+                // Inspection Details Section
+                const Text(
+                  'INSPECTION DETAILS',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 12),
                 _buildInfoRow('Report ID', '${est['report_id'] ?? 'N/A'}'),
                 _buildInfoRow(
                   'Inspection Date',
@@ -520,7 +592,30 @@ class YearEstablishmentsScreen extends StatelessWidget {
                   'Approved Date',
                   est['approved_at']?.toString().split(' ')[0] ?? 'N/A',
                 ),
-                _buildInfoRow('Status', est['overall_status'] ?? 'PASSED'),
+                // FIXED: Status row with widget
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 110,
+                        child: Text(
+                          'Status',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: _getStatusWidget(
+                          est['overall_status'] ?? 'PASSED',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 _buildInfoRow(
                   'Compliance',
                   '${est['passed_items'] ?? 0}/${est['total_items'] ?? 0} passed',
@@ -549,6 +644,86 @@ class YearEstablishmentsScreen extends StatelessWidget {
                       ),
                     ),
                   ),
+
+                const Divider(height: 24),
+
+                // REQUIRED DOCUMENTS SECTION
+                const Text(
+                  'REQUIRED DOCUMENTS',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // FSIC Document
+                _buildDocumentTile(
+                  context: context,
+                  icon: Icons.description,
+                  title: 'Fire Safety Inspection Certificate (FSIC)',
+                  filePath: est['fsic_file_path'],
+                  expiryDate: est['fsic_expiry_date'],
+                  onUpload: () =>
+                      _pickFile('fsic', context, est['establishment_id']),
+                  onView: () => _viewDocument(context, est['fsic_file_path']),
+                ),
+
+                const SizedBox(height: 8),
+
+                // CRO Document
+                _buildDocumentTile(
+                  context: context,
+                  icon: Icons.receipt,
+                  title: 'Certificate of Registration (CRO)',
+                  filePath: est['cro_file_path'],
+                  onUpload: () =>
+                      _pickFile('cro', context, est['establishment_id']),
+                  onView: () => _viewDocument(context, est['cro_file_path']),
+                ),
+
+                const SizedBox(height: 8),
+
+                // FCA Document
+                _buildDocumentTile(
+                  context: context,
+                  icon: Icons.assignment,
+                  title: 'Fire Code Assessment (FCA)',
+                  filePath: est['fca_file_path'],
+                  onUpload: () =>
+                      _pickFile('fca', context, est['establishment_id']),
+                  onView: () => _viewDocument(context, est['fca_file_path']),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Action Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _printReport(context, est),
+                        icon: const Icon(Icons.print, size: 18),
+                        label: const Text('Print Report'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _shareReport(context, est),
+                        icon: const Icon(Icons.share, size: 18),
+                        label: const Text('Share Report'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -579,5 +754,377 @@ class YearEstablishmentsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  // Status widget with color
+  Widget _getStatusWidget(String status) {
+    Color color;
+    IconData icon;
+
+    switch (status.toUpperCase()) {
+      case 'PASSED':
+        color = Colors.green;
+        icon = Icons.check_circle;
+        break;
+      case 'FAILED':
+        color = Colors.red;
+        icon = Icons.cancel;
+        break;
+      case 'PENDING':
+        color = Colors.orange;
+        icon = Icons.pending;
+        break;
+      default:
+        color = Colors.grey;
+        icon = Icons.help;
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 4),
+        Text(
+          status,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Document tile with upload/view options
+  Widget _buildDocumentTile({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    String? filePath,
+    String? expiryDate,
+    required VoidCallback onUpload,
+    required VoidCallback onView,
+  }) {
+    final bool hasFile = filePath != null && filePath.isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: hasFile ? Colors.green[50] : Colors.orange[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  size: 20,
+                  color: hasFile ? Colors.green[700] : Colors.orange[700],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (hasFile) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            size: 12,
+                            color: Colors.green[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              'Uploaded',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.green[600],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ] else ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Not uploaded',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.orange[700],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (hasFile)
+                IconButton(
+                  onPressed: () => _downloadDocument(context, filePath),
+                  icon: Icon(Icons.download, size: 20, color: Colors.blue[700]),
+                  tooltip: 'Download Document',
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(8),
+                ),
+              IconButton(
+                onPressed: onUpload,
+                icon: Icon(
+                  hasFile ? Icons.refresh : Icons.upload_file,
+                  size: 20,
+                  color: hasFile ? Colors.green[700] : Colors.orange[700],
+                ),
+                tooltip: hasFile ? 'Replace Document' : 'Upload Document',
+                constraints: const BoxConstraints(),
+                padding: const EdgeInsets.all(8),
+              ),
+            ],
+          ),
+          if (hasFile && expiryDate != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: _isExpired(expiryDate)
+                    ? Colors.red[50]
+                    : Colors.blue[50],
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.event,
+                    size: 12,
+                    color: _isExpired(expiryDate)
+                        ? Colors.red[700]
+                        : Colors.blue[700],
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Expires: $expiryDate',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: _isExpired(expiryDate)
+                          ? Colors.red[700]
+                          : Colors.blue[700],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> openUrl(String url) async {
+    window.open(url, '_blank');
+  }
+
+  Future<void> _downloadDocument(BuildContext context, String? filePath) async {
+    if (filePath == null || filePath.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No document available'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final String url = "https://luvpark.ph/luvtest/$filePath";
+
+      if (kIsWeb) {
+        // For web - use html.window.open
+        // html.window.open(url, '_blank');
+        openUrl(url);
+      } else {
+        // For mobile/desktop
+        final Uri uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          throw 'Could not launch URL';
+        }
+      }
+
+      // Close loading
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Opening document...'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  bool _isExpired(String expiryDate) {
+    try {
+      final expiry = DateTime.parse(expiryDate);
+      return expiry.isBefore(DateTime.now());
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // View document method
+  Future<void> _viewDocument(BuildContext context, String? filePath) async {
+    if (filePath == null || filePath.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No document available'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Viewing document: $filePath'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // Print report method
+  void _printReport(BuildContext context, Map<String, dynamic> est) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Printing report for ${est['business_name']}'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // Share report method
+  void _shareReport(BuildContext context, Map<String, dynamic> est) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Sharing report for ${est['business_name']}'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _pickFile(
+    String documentType,
+    BuildContext context,
+    int estId,
+  ) async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+    );
+
+    if (result != null) {
+      // For FSIC, show date picker after file selection
+      if (documentType == 'fsic') {
+        _showDatePickerAndUpload(result, documentType, estId, context);
+      } else {
+        // For CRO/FCA, upload directly
+        _uploadDocument(result, documentType, estId: estId, context: context);
+      }
+    }
+  }
+
+  Future<void> _showDatePickerAndUpload(
+    FilePickerResult fileResult,
+    String documentType,
+    int estId,
+    BuildContext context,
+  ) async {
+    DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().add(const Duration(days: 365)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 1825)),
+    );
+
+    if (picked != null) {
+      String formattedDate =
+          "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+
+      _uploadDocument(
+        fileResult,
+        documentType,
+        estId: estId,
+        context: context,
+        expiryDate: formattedDate,
+      );
+    }
+  }
+
+  Future<void> _uploadDocument(
+    dynamic file, // Can be FilePickerResult or String path
+    String documentType, {
+    int? estId,
+    BuildContext? context,
+    String? expiryDate,
+  }) async {
+    final result = await ApiPhp.uploadEstablishmentDocument(
+      file: file, // Pass the FilePickerResult directly on web
+      establishmentId: estId!,
+      documentType: documentType,
+      expiryDate: expiryDate,
+    );
+
+    // Show result
+    ScaffoldMessenger.of(context!).showSnackBar(
+      SnackBar(
+        content: Text(result['message']),
+        backgroundColor: result['success'] ? Colors.green : Colors.red,
+      ),
+    );
+
+    if (result['success']) {
+      print('File uploaded: ${result['file_name']}');
+      print('Path: ${result['file_path']}');
+      Navigator.pop(context, true);
+    }
   }
 }
