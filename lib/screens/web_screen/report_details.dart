@@ -15,7 +15,7 @@ class ReportDetailsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final reportData = report['report'] ?? {};
     final groupedAnswers = report['grouped_answers'] as Map? ?? {};
-
+    print('All sections: ${groupedAnswers.keys.toList()}');
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -210,6 +210,7 @@ class ReportDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildQuestion(Map<String, dynamic> item) {
+    final key = item['key'] ?? ''; // ADD THIS LINE
     final type = item['type'] ?? '';
     final value = item['value'];
     var question = item['item_text'] ?? 'Unknown Item';
@@ -234,6 +235,14 @@ class ReportDetailsScreen extends StatelessWidget {
         .replaceAll('--', '')
         .replaceAll('-', '')
         .trim();
+
+    // Add this before your other type checks
+    if (type.contains('inline_text_with_date') ||
+        key.contains('_text') ||
+        key.contains('_date')) {
+      // Skip individual text/date items - they will be handled together
+      return const SizedBox.shrink();
+    }
 
     // TEXT INPUT
     if (type.contains('text')) {
@@ -370,7 +379,7 @@ class ReportDetailsScreen extends StatelessWidget {
     return const SizedBox.shrink();
   }
 
-  // ✅ RECOMMENDED - Clean Ghost Buttons for Web
+  // ✅ ENHANCED - Bigger, More Visible Buttons
   Widget _buildActionButtons(
     Map<String, dynamic> report,
     BuildContext context,
@@ -390,80 +399,150 @@ class ReportDetailsScreen extends StatelessWidget {
           const Text(
             'Review Report',
             style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
               color: Color(0xFF1E293B),
             ),
           ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _approveReport(reportId, context),
-                  icon: Icon(Icons.check_circle_outline, size: 18),
-                  label: const Text('Approve'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.green[700],
-                    side: BorderSide(
-                      color: Colors.green[700]!.withOpacity(0.5),
-                      width: 1,
+          const SizedBox(height: 16),
+          // Stack buttons vertically on smaller screens
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 500) {
+                return Column(
+                  children: [
+                    _buildActionButton(
+                      label: 'Approve',
+                      icon: Icons.check_circle_outline,
+                      color: Colors.green,
+                      onPressed: () => _approveReport(reportId, context),
+                      disabled: false,
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
+                    const SizedBox(height: 12),
+                    _buildActionButton(
+                      label: 'Decline',
+                      icon: Icons.cancel_outlined,
+                      color: Colors.red,
+                      onPressed: currentStatus != 'FAILED'
+                          ? () => _declineReport(reportId, context)
+                          : null,
+                      disabled: currentStatus == 'FAILED',
                     ),
-                    disabledForegroundColor: Colors.grey[400],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: currentStatus != 'FAILED'
-                      ? () => _declineReport(reportId, context)
-                      : null,
-                  icon: Icon(Icons.cancel_outlined, size: 18),
-                  label: const Text('Decline'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red[700],
-                    side: BorderSide(
-                      color: Colors.red[700]!.withOpacity(0.5),
-                      width: 1,
+                    const SizedBox(height: 12),
+                    _buildActionButton(
+                      label: 'Pending',
+                      icon: Icons.access_time,
+                      color: Colors.orange,
+                      onPressed: currentStatus != 'PENDING'
+                          ? () => _pendingReport(reportId, context)
+                          : null,
+                      disabled: currentStatus == 'PENDING',
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
+                  ],
+                );
+              } else {
+                return Row(
+                  children: [
+                    Expanded(
+                      child: _buildActionButton(
+                        label: 'Approve',
+                        icon: Icons.check_circle_outline,
+                        color: Colors.green,
+                        onPressed: () => _approveReport(reportId, context),
+                        disabled: false,
+                      ),
                     ),
-                    disabledForegroundColor: Colors.grey[400],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: currentStatus != 'PENDING'
-                      ? () => _pendingReport(reportId, context)
-                      : null,
-                  icon: Icon(Icons.access_time, size: 18),
-                  label: const Text('Pending'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.orange[700],
-                    side: BorderSide(
-                      color: Colors.orange[700]!.withOpacity(0.5),
-                      width: 1,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildActionButton(
+                        label: 'Decline',
+                        icon: Icons.cancel_outlined,
+                        color: Colors.red,
+                        onPressed: currentStatus != 'FAILED'
+                            ? () => _declineReport(reportId, context)
+                            : null,
+                        disabled: currentStatus == 'FAILED',
+                      ),
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildActionButton(
+                        label: 'Pending',
+                        icon: Icons.access_time,
+                        color: Colors.orange,
+                        onPressed: currentStatus != 'PENDING'
+                            ? () => _pendingReport(reportId, context)
+                            : null,
+                        disabled: currentStatus == 'PENDING',
+                      ),
                     ),
-                    disabledForegroundColor: Colors.grey[400],
-                  ),
-                ),
-              ),
-            ],
+                  ],
+                );
+              }
+            },
           ),
         ],
+      ),
+    );
+  }
+
+  // Helper method to build consistent action buttons
+  Widget _buildActionButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback? onPressed,
+    required bool disabled,
+  }) {
+    return Container(
+      height: 56, // Taller buttons
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: disabled
+            ? null
+            : [
+                BoxShadow(
+                  color: color.withOpacity(0.2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+      ),
+      child: Material(
+        borderRadius: BorderRadius.circular(12),
+        color: disabled ? Colors.grey[200] : color.withOpacity(0.05),
+        child: InkWell(
+          onTap: disabled ? null : onPressed,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: disabled ? Colors.grey[300]! : color.withOpacity(0.5),
+                width: 1.5, // Thicker border
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 22, // Bigger icon
+                  color: disabled ? Colors.grey[500] : color,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 16, // Bigger text
+                    fontWeight: FontWeight.w600,
+                    color: disabled ? Colors.grey[500] : color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

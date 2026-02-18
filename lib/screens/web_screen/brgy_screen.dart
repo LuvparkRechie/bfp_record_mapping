@@ -1,11 +1,12 @@
-// ignore: deprecated_member_use
-import 'dart:html';
+import 'dart:convert';
 
 import 'package:bfp_record_mapping/api/api_key.dart';
+import 'package:bfp_record_mapping/customs/loading_dialog.dart';
 import 'package:bfp_record_mapping/screens/app_theme.dart';
+import 'package:bfp_record_mapping/screens/web_screen/approved_reports.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart' hide VoidCallback;
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 class BrgyScreen extends StatefulWidget {
@@ -55,13 +56,16 @@ class _BrgyScreenState extends State<BrgyScreen> {
     });
   }
 
-  void _openBarangayFolder(Map<String, dynamic> barangay) {
-    Navigator.push(
+  void _openBarangayFolder(Map<String, dynamic> barangay) async {
+    final response = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => BarangayYearScreen(brgyData: barangay),
       ),
     );
+    if (response != null) {
+      loadBrgyData();
+    }
   }
 
   @override
@@ -304,8 +308,8 @@ class BarangayYearScreen extends StatelessWidget {
                   return MouseRegion(
                     cursor: SystemMouseCursors.click,
                     child: GestureDetector(
-                      onTap: () {
-                        Navigator.push(
+                      onTap: () async {
+                        final response = await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => YearEstablishmentsScreen(
@@ -314,6 +318,9 @@ class BarangayYearScreen extends StatelessWidget {
                             ),
                           ),
                         );
+                        if (response != null) {
+                          Navigator.pop(context, true);
+                        }
                       },
                       child: SizedBox(
                         child: Stack(
@@ -486,7 +493,9 @@ class YearEstablishmentsScreen extends StatelessWidget {
               ),
             ),
             GestureDetector(
-              onTap: () {},
+              onTap: () async {
+                _fetchReportDetails(est['establishment_id'], context);
+              },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -592,7 +601,7 @@ class YearEstablishmentsScreen extends StatelessWidget {
                   'Approved Date',
                   est['approved_at']?.toString().split(' ')[0] ?? 'N/A',
                 ),
-                // FIXED: Status row with widget
+                // Status row with widget
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Row(
@@ -665,8 +674,12 @@ class YearEstablishmentsScreen extends StatelessWidget {
                   title: 'Fire Safety Inspection Certificate (FSIC)',
                   filePath: est['fsic_file_path'],
                   expiryDate: est['fsic_expiry_date'],
-                  onUpload: () =>
-                      _pickFile('fsic', context, est['establishment_id']),
+                  onUpload: () => _pickFile(
+                    'fsic',
+                    est['business_name'],
+                    context,
+                    est['establishment_id'],
+                  ),
                   onView: () => _viewDocument(context, est['fsic_file_path']),
                 ),
 
@@ -678,8 +691,12 @@ class YearEstablishmentsScreen extends StatelessWidget {
                   icon: Icons.receipt,
                   title: 'Certificate of Registration (CRO)',
                   filePath: est['cro_file_path'],
-                  onUpload: () =>
-                      _pickFile('cro', context, est['establishment_id']),
+                  onUpload: () => _pickFile(
+                    'cro',
+                    est['business_name'],
+                    context,
+                    est['establishment_id'],
+                  ),
                   onView: () => _viewDocument(context, est['cro_file_path']),
                 ),
 
@@ -691,39 +708,16 @@ class YearEstablishmentsScreen extends StatelessWidget {
                   icon: Icons.assignment,
                   title: 'Fire Code Assessment (FCA)',
                   filePath: est['fca_file_path'],
-                  onUpload: () =>
-                      _pickFile('fca', context, est['establishment_id']),
+                  onUpload: () => _pickFile(
+                    'fca',
+                    est['business_name'],
+                    context,
+                    est['establishment_id'],
+                  ),
                   onView: () => _viewDocument(context, est['fca_file_path']),
                 ),
 
                 const SizedBox(height: 16),
-
-                // Action Buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _printReport(context, est),
-                        icon: const Icon(Icons.print, size: 18),
-                        label: const Text('Print Report'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _shareReport(context, est),
-                        icon: const Icon(Icons.share, size: 18),
-                        label: const Text('Share Report'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
@@ -803,8 +797,8 @@ class YearEstablishmentsScreen extends StatelessWidget {
     required String title,
     String? filePath,
     String? expiryDate,
-    required VoidCallback onUpload,
-    required VoidCallback onView,
+    required Function() onUpload, // Changed from VoidCallback
+    required Function() onView, // Changed from VoidCallback
   }) {
     final bool hasFile = filePath != null && filePath.isNotEmpty;
 
@@ -939,10 +933,6 @@ class YearEstablishmentsScreen extends StatelessWidget {
     );
   }
 
-  Future<void> openUrl(String url) async {
-    window.open(url, '_blank');
-  }
-
   Future<void> _downloadDocument(BuildContext context, String? filePath) async {
     if (filePath == null || filePath.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -962,20 +952,15 @@ class YearEstablishmentsScreen extends StatelessWidget {
         builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
-      final String url = "https://luvpark.ph/luvtest/$filePath";
+      final String url =
+          "https://luvpark.ph/luvtest/mapping/download_file.php?file=$filePath";
 
-      if (kIsWeb) {
-        // For web - use html.window.open
-        // html.window.open(url, '_blank');
-        openUrl(url);
+      final Uri uri = Uri.parse(url);
+
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
-        // For mobile/desktop
-        final Uri uri = Uri.parse(url);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        } else {
-          throw 'Could not launch URL';
-        }
+        throw 'Could not launch $url';
       }
 
       // Close loading
@@ -1031,28 +1016,9 @@ class YearEstablishmentsScreen extends StatelessWidget {
     );
   }
 
-  // Print report method
-  void _printReport(BuildContext context, Map<String, dynamic> est) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Printing report for ${est['business_name']}'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  // Share report method
-  void _shareReport(BuildContext context, Map<String, dynamic> est) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Sharing report for ${est['business_name']}'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
   Future<void> _pickFile(
     String documentType,
+    String establishmentName,
     BuildContext context,
     int estId,
   ) async {
@@ -1064,15 +1030,28 @@ class YearEstablishmentsScreen extends StatelessWidget {
     if (result != null) {
       // For FSIC, show date picker after file selection
       if (documentType == 'fsic') {
-        _showDatePickerAndUpload(result, documentType, estId, context);
+        _showDatePickerAndUpload(
+          establishmentName,
+          result,
+          documentType,
+          estId,
+          context,
+        );
       } else {
         // For CRO/FCA, upload directly
-        _uploadDocument(result, documentType, estId: estId, context: context);
+        _uploadDocument(
+          establishmentName,
+          result,
+          documentType,
+          estId: estId,
+          context: context,
+        );
       }
     }
   }
 
   Future<void> _showDatePickerAndUpload(
+    String establishmentName,
     FilePickerResult fileResult,
     String documentType,
     int estId,
@@ -1090,6 +1069,7 @@ class YearEstablishmentsScreen extends StatelessWidget {
           "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
 
       _uploadDocument(
+        establishmentName,
         fileResult,
         documentType,
         estId: estId,
@@ -1100,6 +1080,7 @@ class YearEstablishmentsScreen extends StatelessWidget {
   }
 
   Future<void> _uploadDocument(
+    String establishmentName,
     dynamic file, // Can be FilePickerResult or String path
     String documentType, {
     int? estId,
@@ -1109,6 +1090,7 @@ class YearEstablishmentsScreen extends StatelessWidget {
     final result = await ApiPhp.uploadEstablishmentDocument(
       file: file, // Pass the FilePickerResult directly on web
       establishmentId: estId!,
+      establishmentName: establishmentName.toString().replaceAll(" ", "_"),
       documentType: documentType,
       expiryDate: expiryDate,
     );
@@ -1122,9 +1104,237 @@ class YearEstablishmentsScreen extends StatelessWidget {
     );
 
     if (result['success']) {
-      print('File uploaded: ${result['file_name']}');
-      print('Path: ${result['file_path']}');
       Navigator.pop(context, true);
+    }
+  }
+
+  Future<void> _fetchReportDetails(int estId, context) async {
+    try {
+      LoadingDialog.show(context: context, message: "Loading reports...");
+
+      final url = Uri.parse(
+        'https://luvpark.ph/luvtest/mapping/report_details.php',
+      );
+
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'data': {'establishment_id': estId},
+        }),
+      );
+
+      Navigator.pop(context);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+
+        if (jsonResponse["success"]) {
+          if (jsonResponse.containsKey('reports') &&
+              jsonResponse['reports'].isNotEmpty) {
+            // ✅ FILTER: Only keep reports that have answers
+            final List<dynamic> allReports = jsonResponse['reports'];
+
+            // Filter reports that have non-empty grouped_answers
+            final List<dynamic> reportsWithAnswers = allReports.where((report) {
+              final groupedAnswers = report['grouped_answers'] as Map?;
+              final answers = report['answers'] as List?;
+
+              // Check if report has answers
+              return (groupedAnswers != null && groupedAnswers.isNotEmpty) ||
+                  (answers != null && answers.isNotEmpty);
+            }).toList();
+
+            print('Total reports: ${allReports.length}');
+            print('Reports with answers: ${reportsWithAnswers.length}');
+
+            if (reportsWithAnswers.isEmpty) {
+              // Show message if no reports with answers
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'No inspection data found for this establishment',
+                  ),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+              return;
+            }
+
+            // Show list of reports with answers
+            _showReportsList(reportsWithAnswers, context);
+          }
+        } else {
+          throw Exception(jsonResponse["message"] ?? 'Failed to fetch');
+        }
+      } else {
+        throw Exception('HTTP ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showReportsList(List reports, BuildContext context) {
+    if (reports.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No inspection data available'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Select Inspection Report'),
+            backgroundColor: Colors.white,
+            elevation: 0.5,
+          ),
+          body: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: reports.length,
+            itemBuilder: (context, index) {
+              final reportItem = reports[index];
+              final reportData = reportItem['report'];
+
+              // Count how many answers in this report
+              final groupedAnswers = reportItem['grouped_answers'] as Map?;
+              final answerCount =
+                  groupedAnswers?.values.fold<int>(
+                    0,
+                    (sum, items) => sum + (items as List).length,
+                  ) ??
+                  0;
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(color: Colors.grey[200]!),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.all(16),
+                  title: Text(
+                    reportData['report_no'] ?? 'Unknown Report',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_today,
+                            size: 14,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _formatDate(reportData['inspection_date']),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.assignment,
+                            size: 14,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$answerCount items answered',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(
+                        reportData['overall_status'],
+                      ).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      reportData['overall_status'] ?? 'PENDING',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _getStatusColor(reportData['overall_status']),
+                      ),
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ApprovedReportDetailsScreen(
+                          report: reportItem, // Pass the full report object
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Helper method to get status color
+  Color _getStatusColor(String? status) {
+    switch (status?.toUpperCase()) {
+      case 'APPROVED':
+      case 'PASSED':
+        return Colors.green;
+      case 'FAILED':
+        return Colors.red;
+      case 'PENDING':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  // Helper method to format date
+  String _formatDate(String? date) {
+    if (date == null || date.isEmpty) return 'N/A';
+    try {
+      final d = DateTime.parse(date);
+      return '${d.day}/${d.month}/${d.year}';
+    } catch (e) {
+      return date;
     }
   }
 }

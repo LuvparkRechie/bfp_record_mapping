@@ -4,7 +4,6 @@ import 'package:bfp_record_mapping/customs/loading_dialog.dart';
 import 'package:bfp_record_mapping/screens/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 
 class EstablishmentScreen extends StatefulWidget {
   const EstablishmentScreen({super.key});
@@ -908,16 +907,12 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
       TextEditingController();
   final TextEditingController _floorAreaController = TextEditingController();
   final TextEditingController _storeysController = TextEditingController();
-  final TextEditingController _latitudeController = TextEditingController();
-  final TextEditingController _longitudeController = TextEditingController();
   final TextEditingController _fsicExpiryController = TextEditingController();
 
   // Variables for dropdowns and selections
   String? _selectedBarangay;
   String? _selectedStatus = 'NEW';
-  String? _fsicFilePath;
-  String? _croFilePath;
-  String? _fcaFilePath;
+
   bool _isActive = true;
 
   // Sample data
@@ -948,36 +943,10 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
     print("_barangays $_barangays");
   }
 
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      setState(() {
-        _fsicExpiryController.text = DateFormat('yyyy-MM-dd').format(picked);
-      });
-    }
-  }
-
-  Future<void> _pickFile(String type) async {
-    setState(() {
-      if (type == 'fsic') {
-        _fsicFilePath = '/path/to/fsic_file.pdf';
-      } else if (type == 'cro') {
-        _croFilePath = '/path/to/cro_file.pdf';
-      } else if (type == 'fca') {
-        _fcaFilePath = '/path/to/fca_file.pdf';
-      }
-    });
-  }
-
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
       // Prepare establishment data
-
+      print("sulod");
       try {
         final establishment = {
           'business_name': _businessNameController.text,
@@ -994,7 +963,6 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
           'longitude': "",
           'establishment_status': _selectedStatus,
           'fsic_file_path': "",
-          'fsic_expiry': "",
           'cro_file_path': "",
           'fca_file_path': "",
           'is_active': _isActive,
@@ -1004,6 +972,7 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
           tableName: "establishments",
           parameters: establishment,
         ).insert();
+        print("result $result");
         if (result["success"]) {
           widget.onSave();
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1034,9 +1003,7 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
     setState(() {
       _selectedBarangay = null;
       _selectedStatus = 'NEW';
-      _fsicFilePath = null;
-      _croFilePath = null;
-      _fcaFilePath = null;
+
       _isActive = true;
       _townController.text = 'Hinigaran';
     });
@@ -1420,90 +1387,6 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
     );
   }
 
-  Widget _buildFileUploadRow({
-    required String label,
-    required String? filePath,
-    required VoidCallback onPressed,
-  }) {
-    return Container(
-      width: 400,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ElevatedButton.icon(
-            onPressed: onPressed,
-            icon: Icon(Icons.upload_file, size: 20),
-            label: Text('Upload $label'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue[50],
-              foregroundColor: Colors.blue[700],
-              elevation: 0,
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-                side: BorderSide(color: Colors.blue[200]!),
-              ),
-            ),
-          ),
-          if (filePath != null) ...[
-            SizedBox(height: 8),
-            Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.green[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.green[200]!),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.check_circle, size: 20, color: Colors.green[700]),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'File Selected',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.green[800],
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          filePath.split('/').last,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey[600],
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.close, size: 16, color: Colors.grey[500]),
-                    onPressed: () {
-                      setState(() {
-                        if (label.contains('FSIC')) {
-                          _fsicFilePath = null;
-                        } else if (label.contains('CRO')) {
-                          _croFilePath = null;
-                        } else if (label.contains('FCA')) {
-                          _fcaFilePath = null;
-                        }
-                      });
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
   @override
   void dispose() {
     _scrollController.dispose();
@@ -1516,8 +1399,6 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
     _occupancyTypeController.dispose();
     _floorAreaController.dispose();
     _storeysController.dispose();
-    _latitudeController.dispose();
-    _longitudeController.dispose();
     _fsicExpiryController.dispose();
     super.dispose();
   }

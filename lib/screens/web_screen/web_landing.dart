@@ -24,9 +24,9 @@ class _WebLandingPageState extends State<WebLandingPage> {
       'widget': ReportsScreen(),
     },
     {
-      'id': 'barangays',
+      'id': 'records',
       'icon': Icons.list_alt,
-      'label': 'Barangays',
+      'label': 'BFP Records',
       'widget': BrgyScreen(),
     },
     {

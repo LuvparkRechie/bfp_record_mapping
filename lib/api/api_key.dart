@@ -357,6 +357,7 @@ class ApiPhp {
   static Future<Map<String, dynamic>> uploadEstablishmentDocument({
     required dynamic file, // Can be String path or FilePickerResult
     required int establishmentId,
+    required String establishmentName, // ADD THIS
     required String documentType,
     String? expiryDate,
   }) async {
@@ -394,6 +395,7 @@ class ApiPhp {
 
     // Add fields
     request.fields['establishment_id'] = establishmentId.toString();
+    request.fields['establishment_name'] = establishmentName; // ADD THIS
     request.fields['document_type'] = documentType;
 
     // Only add expiry_date for FSIC and if provided

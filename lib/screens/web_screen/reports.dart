@@ -62,7 +62,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Future<void> _fetchReportDetails(int reportId) async {
     try {
-      // 🔴 DON'T use ApiPhp - it's corrupting your response!
       final url = Uri.parse(
         'https://luvpark.ph/luvtest/mapping/report_details.php',
       );
@@ -77,6 +76,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+        if (jsonResponse.containsKey('debug')) {
+          print('🔍 DEBUG INFO:');
+          print(
+            '  Has missing templates: ${jsonResponse['debug']['has_missing_templates']}',
+          );
+          print(
+            '  Missing template IDs: ${jsonResponse['debug']['missing_template_ids']}',
+          );
+          print(
+            '  Missing templates count: ${jsonResponse['debug']['missing_templates_count']}',
+          );
+
+          if (jsonResponse['debug']['has_missing_templates']) {
+            print(
+              '  Details: ${jsonResponse['debug']['missing_templates_details']}',
+            );
+          }
+        }
 
         print('🔥 RAW API RESPONSE: ${jsonResponse.keys}');
 
