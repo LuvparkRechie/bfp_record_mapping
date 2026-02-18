@@ -534,13 +534,12 @@ class _UsersScreenState extends State<UsersScreen> {
                     'mobile_no': mobileController.text,
                     'role': selectedRole,
                     'is_active': "Y",
-                    'created_at': DateTime.now().toString().split(' ')[0],
                   };
                   final result = await ApiPhp(
                     tableName: "users",
                     parameters: newUser,
                   ).insert();
-
+                  print("newUser $newUser. -- $result");
                   if (result["success"]) {
                     _loadUsers();
 
