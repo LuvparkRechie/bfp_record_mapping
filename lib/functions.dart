@@ -1,35 +1,51 @@
-import 'package:location/location.dart';
+import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class Functions {
-  static Future<dynamic> getLocation() async {
-    Location location = Location();
-
+  static Future<Position?> getLocation() async {
     bool serviceEnabled;
-    PermissionStatus permissionGranted;
-    LocationData locationData;
+    LocationPermission permission;
 
-    // Check if location service is enabled
-    serviceEnabled = await location.serviceEnabled();
-    if (!serviceEnabled) {
-      serviceEnabled = await location.requestService();
-      if (!serviceEnabled) {
-        return null;
-      }
-    }
+    // Check if location services are enabled
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return null;
 
     // Check permission
-    permissionGranted = await location.hasPermission();
-    if (permissionGranted == PermissionStatus.denied) {
-      permissionGranted = await location.requestPermission();
-      if (permissionGranted != PermissionStatus.granted) {
-        return null;
-      }
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return null;
     }
 
-    // Get location
-    locationData = await location.getLocation();
+    if (permission == LocationPermission.deniedForever) return null;
 
-    locationData = await location.getLocation();
-    return locationData;
+    return await Geolocator.getCurrentPosition();
+  }
+
+  static void viewOnMap(Map<String, dynamic> coordinates, context) async {
+    final result = await getLocation();
+
+    if (result == null) {
+      print("accept location");
+      return;
+    }
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final String url =
+        "https://www.google.com/maps/dir/?api=1&origin=${result.latitude},${result.longitude}&destination=${coordinates['latitude']},${coordinates['longitude']}&travelmode=driving";
+
+    final Uri uri = Uri.parse(url);
+    Navigator.of(context).pop();
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      throw 'Could not launch $url';
+    }
   }
 }

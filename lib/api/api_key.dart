@@ -520,6 +520,70 @@ class ApiPhp {
     }
     return [];
   }
+
+  static Future<Map<String, dynamic>> login({
+    required String email,
+    required String password,
+  }) async {
+    final url = Uri.parse("https://luvpark.ph/luvtest/mapping/login.php");
+
+    try {
+      // Check internet connection first
+      final internetCheck = await NetworkUtils.hasInternetConnection();
+      if (!internetCheck["success"]) {
+        return {
+          "success": false,
+          "message": "No internet connection",
+          "error": "network_unavailable",
+        };
+      }
+
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({
+              'data': {'email': email, 'password': password},
+            }),
+          )
+          .timeout(
+            const Duration(seconds: 20),
+            onTimeout: () {
+              return http.Response(
+                json.encode({
+                  "success": false,
+                  "message": "Connection timeout",
+                }),
+                408,
+              );
+            },
+          );
+
+      if (response.statusCode == 200) {
+        final body = json.decode(response.body);
+
+        if (body['success'] == true) {
+          return {
+            "success": true,
+            "message": body['message'] ?? "Login successful",
+            "data": body['data'],
+          };
+        } else {
+          return {
+            "success": false,
+            "message": body['message'] ?? "Login failed",
+          };
+        }
+      } else {
+        return {
+          "success": false,
+          "message": "Server error: ${response.statusCode}",
+        };
+      }
+    } catch (e) {
+      return {"success": false, "message": "Login error: ${e.toString()}"};
+    }
+  }
 }
 
 // -------------------------------

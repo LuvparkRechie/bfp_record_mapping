@@ -1,7 +1,9 @@
 // establishment_screen.dart - Updated with complete form screen
 import 'package:bfp_record_mapping/api/api_key.dart';
 import 'package:bfp_record_mapping/customs/loading_dialog.dart';
+import 'package:bfp_record_mapping/functions.dart';
 import 'package:bfp_record_mapping/screens/app_theme.dart';
+import 'package:bfp_record_mapping/shared_pref.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -19,11 +21,19 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
   String _searchQuery = '';
   String _selectedFilter = 'All';
   final ScrollController _scrollController = ScrollController();
+  Map<String, dynamic>? userData;
 
   @override
   void initState() {
     super.initState();
+    loadUserData();
     _loadEstablishments();
+  }
+
+  void loadUserData() async {
+    userData = await StoreCredentials.getUserData();
+    print("user data $userData");
+    setState(() {});
   }
 
   Future<void> _loadEstablishments() async {
@@ -676,6 +686,7 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
                             DataColumn(label: Text('ACTIONS')),
                           ],
                           rows: filteredEstablishments.map((establishment) {
+                            print("establishment $establishment");
                             return DataRow(
                               cells: [
                                 DataCell(
@@ -718,6 +729,14 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
 
                                     child: Text(
                                       establishment['inspection_status'],
+                                      style: TextStyle(
+                                        color: _getActionStatusColor(
+                                          establishment['inspection_status']
+                                              .toString()
+                                              .toLowerCase(),
+                                        ),
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -755,16 +774,24 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
                                 DataCell(
                                   Row(
                                     children: [
-                                      IconButton(
-                                        onPressed: () =>
-                                            _viewDetails(establishment),
-                                        icon: Icon(
-                                          Icons.visibility_outlined,
-                                          size: 20,
+                                      if (establishment["latitude"] != null &&
+                                          establishment["longitude"] != null)
+                                        IconButton(
+                                          onPressed: () {
+                                            Functions.viewOnMap({
+                                              "latitude":
+                                                  establishment["latitude"],
+                                              "longitude":
+                                                  establishment["longitude"],
+                                            }, context);
+                                          },
+                                          icon: Icon(
+                                            Icons.map_outlined,
+                                            size: 20,
+                                          ),
+                                          color: Colors.blue[600],
+                                          tooltip: 'View on map',
                                         ),
-                                        color: Colors.blue[600],
-                                        tooltip: 'View Details',
-                                      ),
                                       IconButton(
                                         onPressed: () =>
                                             _editEstablishment(establishment),
@@ -777,10 +804,15 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
                                       ),
 
                                       if (establishment['inspection_status']
-                                              .toString()
-                                              .trim()
-                                              .toLowerCase() ==
-                                          'pending')
+                                                  .toString()
+                                                  .trim()
+                                                  .toLowerCase() !=
+                                              'passed' &&
+                                          establishment['inspection_status']
+                                                  .toString()
+                                                  .toLowerCase() !=
+                                              "in progress" &&
+                                          userData!["role"] == "Admin")
                                         IconButton(
                                           onPressed: () async {
                                             LoadingDialog.show(
@@ -846,6 +878,19 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
         ),
       ],
     );
+  }
+
+  Color _getActionStatusColor(String status) {
+    switch (status) {
+      case 'passed':
+        return Colors.green[400]!;
+      case 'pending':
+        return Colors.orange[400]!;
+      case 'failed':
+        return Colors.red[400]!;
+      default:
+        return Colors.blue[400]!;
+    }
   }
 
   Color _getStatusColor(String status) {
@@ -945,8 +990,6 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
 
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      // Prepare establishment data
-      print("sulod");
       try {
         final establishment = {
           'business_name': _businessNameController.text,
@@ -959,20 +1002,19 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
           'occupancy_type': _occupancyTypeController.text,
           'floor_area': double.tryParse(_floorAreaController.text),
           'no_of_storeys': int.tryParse(_storeysController.text),
-          'latitude': "",
-          'longitude': "",
+
           'establishment_status': _selectedStatus,
           'fsic_file_path': "",
           'cro_file_path': "",
           'fca_file_path': "",
-          'is_active': _isActive,
+          'is_active': "Y",
         };
 
         final result = await ApiPhp(
           tableName: "establishments",
           parameters: establishment,
         ).insert();
-        print("result $result");
+
         if (result["success"]) {
           widget.onSave();
           ScaffoldMessenger.of(context).showSnackBar(

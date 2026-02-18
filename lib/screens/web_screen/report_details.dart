@@ -127,7 +127,6 @@ class ReportDetailsScreen extends StatelessWidget {
                   (entry) => _buildSection(entry.key, entry.value),
                 ),
 
-                // ✅ APPROVE/DECLINE BUTTONS
                 const SizedBox(height: 24),
                 _buildActionButtons(reportData, context),
                 const SizedBox(height: 30),
@@ -415,7 +414,8 @@ class ReportDetailsScreen extends StatelessWidget {
                       label: 'Approve',
                       icon: Icons.check_circle_outline,
                       color: Colors.green,
-                      onPressed: () => _approveReport(reportId, context),
+                      onPressed: () =>
+                          _approveReport(reportId, context, "approve"),
                       disabled: false,
                     ),
                     const SizedBox(height: 12),
@@ -424,19 +424,9 @@ class ReportDetailsScreen extends StatelessWidget {
                       icon: Icons.cancel_outlined,
                       color: Colors.red,
                       onPressed: currentStatus != 'FAILED'
-                          ? () => _declineReport(reportId, context)
+                          ? () => _approveReport(reportId, context, "decline")
                           : null,
                       disabled: currentStatus == 'FAILED',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildActionButton(
-                      label: 'Pending',
-                      icon: Icons.access_time,
-                      color: Colors.orange,
-                      onPressed: currentStatus != 'PENDING'
-                          ? () => _pendingReport(reportId, context)
-                          : null,
-                      disabled: currentStatus == 'PENDING',
                     ),
                   ],
                 );
@@ -448,7 +438,8 @@ class ReportDetailsScreen extends StatelessWidget {
                         label: 'Approve',
                         icon: Icons.check_circle_outline,
                         color: Colors.green,
-                        onPressed: () => _approveReport(reportId, context),
+                        onPressed: () =>
+                            _approveReport(reportId, context, "approve"),
                         disabled: false,
                       ),
                     ),
@@ -459,21 +450,9 @@ class ReportDetailsScreen extends StatelessWidget {
                         icon: Icons.cancel_outlined,
                         color: Colors.red,
                         onPressed: currentStatus != 'FAILED'
-                            ? () => _declineReport(reportId, context)
+                            ? () => _approveReport(reportId, context, "decline")
                             : null,
                         disabled: currentStatus == 'FAILED',
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildActionButton(
-                        label: 'Pending',
-                        icon: Icons.access_time,
-                        color: Colors.orange,
-                        onPressed: currentStatus != 'PENDING'
-                            ? () => _pendingReport(reportId, context)
-                            : null,
-                        disabled: currentStatus == 'PENDING',
                       ),
                     ),
                   ],
@@ -548,7 +527,11 @@ class ReportDetailsScreen extends StatelessWidget {
   }
 
   // ✅ APPROVE REPORT - Updates both tables
-  Future<void> _approveReport(int? reportId, BuildContext context) async {
+  Future<void> _approveReport(
+    int? reportId,
+    BuildContext context,
+    String status,
+  ) async {
     print("reportId $reportId");
     if (reportId == null) return;
 
@@ -563,7 +546,7 @@ class ReportDetailsScreen extends StatelessWidget {
       final response =
           await ApiPhp(
             tableName: "inspection_reports",
-            parameters: {'report_id': reportId},
+            parameters: {'report_id': reportId, 'action': status},
           ).update(
             subUrl: 'https://luvpark.ph/luvtest/mapping/approve_reports.php',
           );
@@ -572,16 +555,16 @@ class ReportDetailsScreen extends StatelessWidget {
       Navigator.pop(context);
 
       print('Approve response: $response');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(response["message"]),
+          backgroundColor: Colors.green[700],
+          duration: const Duration(seconds: 2),
+        ),
+      );
 
       if (response["success"] == true) {
         // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✓ Report approved successfully'),
-            backgroundColor: Colors.green[700],
-            duration: const Duration(seconds: 2),
-          ),
-        );
 
         // Refresh the reports list
         onStatusUpdated();
@@ -614,21 +597,6 @@ class ReportDetailsScreen extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Decline functionality coming soon'),
-        backgroundColor: Colors.orange[700],
-      ),
-    );
-    onStatusUpdated();
-  }
-
-  // ✅ PENDING REPORT
-  Future<void> _pendingReport(int? reportId, BuildContext context) async {
-    if (reportId == null) return;
-
-    // TODO: Implement pending API call
-    print('Marking as pending: $reportId');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Marked as pending'),
         backgroundColor: Colors.orange[700],
       ),
     );

@@ -1,9 +1,7 @@
 import 'dart:async';
 
 import 'package:bfp_record_mapping/screens/app_theme.dart';
-import 'package:bfp_record_mapping/screens/inspector_screen/assigned_task.dart';
 import 'package:bfp_record_mapping/screens/login_screen.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -29,9 +27,7 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(const Duration(seconds: 3));
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(
-        builder: (_) => kIsWeb ? LoginScreen() : InspAssignedTask(),
-      ),
+      MaterialPageRoute(builder: (_) => LoginScreen()),
     );
   }
 

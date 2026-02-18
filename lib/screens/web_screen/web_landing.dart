@@ -58,7 +58,6 @@ class _WebLandingPageState extends State<WebLandingPage> {
     return item['widget'] as Widget;
   }
 
-  // Get current screen title
   String get currentTitle {
     final item = menuItems.firstWhere(
       (item) => item['id'] == selectedMenu,

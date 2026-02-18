@@ -1108,7 +1108,7 @@ class YearEstablishmentsScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _fetchReportDetails(int estId, context) async {
+  Future<void> _fetchReportDetails(int estId, BuildContext context) async {
     try {
       LoadingDialog.show(context: context, message: "Loading reports...");
 
@@ -1129,40 +1129,29 @@ class YearEstablishmentsScreen extends StatelessWidget {
       if (response.statusCode == 200) {
         final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
 
-        if (jsonResponse["success"]) {
+        // Debug print like the reports side
+        if (jsonResponse.containsKey('debug')) {
+          if (jsonResponse['debug']['has_missing_templates']) {
+            print(
+              'Has missing templates: ${jsonResponse['debug']['has_missing_templates']}',
+            );
+          }
+        }
+
+        print('🔥 RAW API RESPONSE: ${jsonResponse.keys}');
+
+        if (jsonResponse["success"] == true) {
           if (jsonResponse.containsKey('reports') &&
               jsonResponse['reports'].isNotEmpty) {
-            // ✅ FILTER: Only keep reports that have answers
+            // Get all reports (no filtering)
             final List<dynamic> allReports = jsonResponse['reports'];
 
-            // Filter reports that have non-empty grouped_answers
-            final List<dynamic> reportsWithAnswers = allReports.where((report) {
-              final groupedAnswers = report['grouped_answers'] as Map?;
-              final answers = report['answers'] as List?;
-
-              // Check if report has answers
-              return (groupedAnswers != null && groupedAnswers.isNotEmpty) ||
-                  (answers != null && answers.isNotEmpty);
-            }).toList();
-
             print('Total reports: ${allReports.length}');
-            print('Reports with answers: ${reportsWithAnswers.length}');
 
-            if (reportsWithAnswers.isEmpty) {
-              // Show message if no reports with answers
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'No inspection data found for this establishment',
-                  ),
-                  backgroundColor: Colors.orange,
-                ),
-              );
-              return;
-            }
-
-            // Show list of reports with answers
-            _showReportsList(reportsWithAnswers, context);
+            // Show list of all reports
+            _showReportsList(allReports, context);
+          } else {
+            throw Exception('No reports found');
           }
         } else {
           throw Exception(jsonResponse["message"] ?? 'Failed to fetch');
@@ -1172,53 +1161,41 @@ class YearEstablishmentsScreen extends StatelessWidget {
       }
     } catch (e) {
       print('Error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
-  void _showReportsList(List reports, BuildContext context) {
-    if (reports.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No inspection data available'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
+  void _showReportsList(List<dynamic> reports, BuildContext context) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => Scaffold(
           appBar: AppBar(
-            title: const Text('Select Inspection Report'),
+            title: const Text('Select Report'),
             backgroundColor: Colors.white,
             elevation: 0.5,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+            ),
           ),
           body: ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: reports.length,
             itemBuilder: (context, index) {
               final reportItem = reports[index];
-              final reportData = reportItem['report'];
-
-              // Count how many answers in this report
-              final groupedAnswers = reportItem['grouped_answers'] as Map?;
-              final answerCount =
-                  groupedAnswers?.values.fold<int>(
-                    0,
-                    (sum, items) => sum + (items as List).length,
-                  ) ??
-                  0;
+              final report = reportItem['report'] ?? {};
 
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
+                elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                   side: BorderSide(color: Colors.grey[200]!),
@@ -1226,26 +1203,26 @@ class YearEstablishmentsScreen extends StatelessWidget {
                 child: ListTile(
                   contentPadding: const EdgeInsets.all(16),
                   title: Text(
-                    reportData['report_no'] ?? 'Unknown Report',
+                    report['report_no'] ?? 'Unknown Report',
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
                       Row(
                         children: [
                           Icon(
                             Icons.calendar_today,
                             size: 14,
-                            color: Colors.grey[600],
+                            color: Colors.grey[500],
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            _formatDate(reportData['inspection_date']),
+                            'Date: ${_formatDate(report['inspection_date'])}',
                             style: TextStyle(
                               fontSize: 13,
                               color: Colors.grey[600],
@@ -1259,14 +1236,22 @@ class YearEstablishmentsScreen extends StatelessWidget {
                           Icon(
                             Icons.assignment,
                             size: 14,
-                            color: Colors.grey[600],
+                            color: Colors.grey[500],
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '$answerCount items answered',
+                            'Status: ',
                             style: TextStyle(
                               fontSize: 13,
                               color: Colors.grey[600],
+                            ),
+                          ),
+                          Text(
+                            report['overall_status'] ?? 'PENDING',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: _getStatusColor(report['overall_status']),
                             ),
                           ),
                         ],
@@ -1275,21 +1260,21 @@ class YearEstablishmentsScreen extends StatelessWidget {
                   ),
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
+                      horizontal: 8,
+                      vertical: 4,
                     ),
                     decoration: BoxDecoration(
                       color: _getStatusColor(
-                        reportData['overall_status'],
+                        report['overall_status'],
                       ).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      reportData['overall_status'] ?? 'PENDING',
+                      '${report['passed_items'] ?? 0}/${report['total_items'] ?? 0}',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: _getStatusColor(reportData['overall_status']),
+                        color: _getStatusColor(report['overall_status']),
                       ),
                     ),
                   ),
@@ -1297,9 +1282,8 @@ class YearEstablishmentsScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => ApprovedReportDetailsScreen(
-                          report: reportItem, // Pass the full report object
-                        ),
+                        builder: (context) =>
+                            ApprovedReportDetailsScreen(report: reportItem),
                       ),
                     );
                   },
@@ -1312,13 +1296,14 @@ class YearEstablishmentsScreen extends StatelessWidget {
     );
   }
 
-  // Helper method to get status color
+  // Helper method for status color
   Color _getStatusColor(String? status) {
     switch (status?.toUpperCase()) {
-      case 'APPROVED':
       case 'PASSED':
+      case 'APPROVED':
         return Colors.green;
       case 'FAILED':
+      case 'DECLINED':
         return Colors.red;
       case 'PENDING':
         return Colors.orange;
@@ -1328,13 +1313,13 @@ class YearEstablishmentsScreen extends StatelessWidget {
   }
 
   // Helper method to format date
-  String _formatDate(String? date) {
-    if (date == null || date.isEmpty) return 'N/A';
+  String _formatDate(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return 'N/A';
     try {
-      final d = DateTime.parse(date);
-      return '${d.day}/${d.month}/${d.year}';
+      final date = DateTime.parse(dateStr);
+      return '${date.day}/${date.month}/${date.year}';
     } catch (e) {
-      return date;
+      return dateStr;
     }
   }
 }

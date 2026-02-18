@@ -1768,7 +1768,7 @@ class _ChecklistPageState extends State<ChecklistPage> {
         tableName: "inspection_reports",
         parameters: reportData,
       ).insert(subUrl: 'https://luvpark.ph/luvtest/mapping/save_checklist.php');
-      print('response $response');
+
       if (response["success"]) {
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
