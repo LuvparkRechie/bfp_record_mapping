@@ -278,7 +278,9 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
                     : assignedData.isEmpty
                     ? Center(
                         child: ListView(
+                          padding: const EdgeInsets.all(16),
                           children: [
+                            SizedBox(height: 100),
                             Container(
                               width: 100,
                               height: 100,
