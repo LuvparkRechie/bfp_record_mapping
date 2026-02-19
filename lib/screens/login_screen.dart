@@ -683,7 +683,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (result["success"]) {
         await StoreCredentials.saveUserData(result["data"]["user"]);
 
-        if (kIsWeb && result["data"]["user"]["role"] != "Inspector") {
+        if (!kIsWeb && result["data"]["user"]["role"] != "Inspector") {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Error: Not supported'),
