@@ -5,11 +5,16 @@ import 'package:bfp_record_mapping/functions.dart';
 import 'package:flutter/material.dart';
 
 class ChecklistPage extends StatefulWidget {
+  final String establishmentName, address;
   final int establishmentId, inspectionId;
+  final Map userData;
   const ChecklistPage({
     super.key,
     required this.establishmentId,
     required this.inspectionId,
+    required this.establishmentName,
+    required this.address,
+    required this.userData,
   });
 
   @override
@@ -34,6 +39,7 @@ class _ChecklistPageState extends State<ChecklistPage> {
   @override
   void initState() {
     super.initState();
+
     _fetchChecklist();
     _initializeEvacuationCheckboxes();
   }
@@ -1728,9 +1734,9 @@ class _ChecklistPageState extends State<ChecklistPage> {
 
     final reportData = {
       'report_no': reportNo,
-      'building_name': "Homeworld",
-      'building_address': "Libaong National high school",
-      'inspector_name': 'Inspector Name',
+      'building_name': widget.establishmentName,
+      'building_address': widget.address,
+      'inspector_name': widget.userData["full_name"],
       'inspection_date': DateTime.now().toString().split(' ')[0],
       'submission_date': DateTime.now().toString().split('.')[0],
       'status': 'PENDING',
@@ -1742,7 +1748,7 @@ class _ChecklistPageState extends State<ChecklistPage> {
       'notes': 'Inspection completed via mobile app',
       'answers': jsonEncode(checklistAnswers),
       'establishment_id': widget.establishmentId,
-      'inspector_id': 4, // T
+      'inspector_id': widget.userData["id"], // T
       'inspection_id': widget.inspectionId,
       'latitude': coordinate.latitude,
       'longitude': coordinate.longitude,

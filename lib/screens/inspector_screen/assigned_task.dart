@@ -1,5 +1,6 @@
 import 'package:bfp_record_mapping/api/api_key.dart';
 import 'package:bfp_record_mapping/screens/inspector_screen/checklist.dart';
+import 'package:bfp_record_mapping/shared_pref.dart';
 import 'package:flutter/material.dart';
 
 class InspAssignedTask extends StatefulWidget {
@@ -12,6 +13,7 @@ class InspAssignedTask extends StatefulWidget {
 class _InspAssignedTaskState extends State<InspAssignedTask> {
   bool isLoading = true;
   List assignedData = [];
+  Map userData = {};
 
   @override
   void initState() {
@@ -20,6 +22,7 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
   }
 
   void getAssignedSTask() async {
+    userData = await StoreCredentials.getUserData();
     setState(() {
       isLoading = true;
     });
@@ -29,9 +32,9 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
       final joinConfig = {
         'join':
             'INNER JOIN establishments e ON e.establishment_id = assigned_inspections.establishment_id',
-        'columns': 'assigned_inspections.*, e.business_name',
+        'columns': 'assigned_inspections.*, e.business_name,e.street_address',
         'where': 'assigned_inspections.inspector_id = ?',
-        'where_params': [4],
+        'where_params': [userData["id"]],
         'orderBy': 'assigned_inspections.assigned_id DESC',
         'limit': 100,
       };
@@ -53,7 +56,6 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
 
   // Safe date formatting methods
   String _formatTime(dynamic dateValue) {
-    print("dateValue $dateValue");
     if (dateValue == null) return '--:--';
 
     try {
@@ -81,7 +83,6 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
 
       return '$displayHour:$minute $period';
     } catch (e) {
-      print('Error formatting time: $e for value: $dateValue');
       return '--:--';
     }
   }
@@ -276,8 +277,7 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
                       )
                     : assignedData.isEmpty
                     ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        child: ListView(
                           children: [
                             Container(
                               width: 100,
@@ -499,11 +499,13 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
                                                 color: Colors.grey.shade600,
                                               ),
                                               const SizedBox(width: 6),
-                                              Text(
-                                                formattedDate,
-                                                style: TextStyle(
-                                                  fontSize: 13,
-                                                  color: Colors.grey.shade700,
+                                              Expanded(
+                                                child: Text(
+                                                  formattedDate,
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    color: Colors.grey.shade700,
+                                                  ),
                                                 ),
                                               ),
                                               const SizedBox(width: 12),
@@ -519,11 +521,13 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
                                                 color: Colors.grey.shade600,
                                               ),
                                               const SizedBox(width: 6),
-                                              Text(
-                                                formattedTime,
-                                                style: TextStyle(
-                                                  fontSize: 13,
-                                                  color: Colors.grey.shade700,
+                                              Expanded(
+                                                child: Text(
+                                                  formattedTime,
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    color: Colors.grey.shade700,
+                                                  ),
                                                 ),
                                               ),
                                             ],
@@ -537,14 +541,32 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
                                             width: double.infinity,
                                             child: ElevatedButton(
                                               onPressed: () async {
+                                                print(
+                                                  "establishmentName ${inspection['street_address']}",
+                                                );
+
+                                                print(
+                                                  "establishmentName ${inspection['establishment_id']}",
+                                                );
+                                                print(
+                                                  "establishmentName ${inspection['assigned_id']}",
+                                                );
+                                                print(
+                                                  "establishmentName ${userData}",
+                                                );
                                                 final result = await Navigator.push(
                                                   context,
                                                   MaterialPageRoute(
                                                     builder: (_) => ChecklistPage(
                                                       establishmentId:
                                                           inspection['establishment_id'],
+                                                      establishmentName:
+                                                          inspection['business_name'],
+                                                      address:
+                                                          inspection['street_address'],
                                                       inspectionId:
                                                           inspection['assigned_id'],
+                                                      userData: userData,
                                                     ),
                                                   ),
                                                 );
