@@ -1,55 +1,56 @@
 import 'package:bfp_record_mapping/screens/app_theme.dart';
-import 'package:bfp_record_mapping/screens/web_screen/brgy_screen.dart';
+import 'package:bfp_record_mapping/screens/web_screen/bfp_records.dart';
 import 'package:bfp_record_mapping/screens/web_screen/establishments.dart';
 import 'package:bfp_record_mapping/screens/web_screen/reports.dart';
 import 'package:bfp_record_mapping/screens/web_screen/users.dart';
 import 'package:flutter/material.dart';
 
 class WebLandingPage extends StatefulWidget {
-  const WebLandingPage({Key? key}) : super(key: key);
+  final Map<String, dynamic> userData; // Add user data parameter
+
+  const WebLandingPage({Key? key, required this.userData}) : super(key: key);
 
   @override
   _WebLandingPageState createState() => _WebLandingPageState();
 }
 
 class _WebLandingPageState extends State<WebLandingPage> {
-  bool sidebarOpen = false;
-  String selectedMenu = 'dashboard';
+  bool sidebarOpen = true; // Start open for web
+  String selectedMenu = 'reports';
 
   final List<Map<String, dynamic>> menuItems = [
     {
       'id': 'reports',
       'icon': Icons.dashboard,
       'label': 'Reports',
-      'widget': ReportsScreen(),
+      'widget': const ReportsScreen(),
     },
     {
       'id': 'records',
       'icon': Icons.list_alt,
       'label': 'BFP Records',
-      'widget': BrgyScreen(),
+      'widget': const BrgyScreen(),
     },
     {
       'id': 'establishments',
       'icon': Icons.business,
       'label': 'Establishments',
-      'widget': EstablishmentScreen(),
+      'widget': const EstablishmentScreen(),
     },
     {
       'id': 'users',
       'icon': Icons.people,
       'label': 'Users',
-      'widget': UsersScreen(),
+      'widget': const UsersScreen(),
     },
     {
       'id': 'settings',
       'icon': Icons.settings,
       'label': 'Settings',
-      'widget': BrgyScreen(),
+      'widget': const BrgyScreen(),
     },
   ];
 
-  // Get current screen widget
   Widget get currentScreen {
     final item = menuItems.firstWhere(
       (item) => item['id'] == selectedMenu,
@@ -69,43 +70,186 @@ class _WebLandingPageState extends State<WebLandingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.grey[50],
       body: Row(
         children: [
-          // Simplified Sidebar
-          Container(
-            width: sidebarOpen ? 220 : 70,
+          // Enhanced Sidebar
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            width: sidebarOpen ? 280 : 80,
             height: double.infinity,
             decoration: BoxDecoration(
-              color: AppColors.primaryRed,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [AppColors.primaryRed, AppColors.darkRed],
+              ),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(2, 0),
+                ),
               ],
             ),
             child: Column(
               children: [
-                // Logo/Header - Simplified
+                // Enhanced Header with Logo and User Info
                 Container(
-                  height: 80,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: sidebarOpen ? 20 : 16,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  padding: EdgeInsets.all(sidebarOpen ? 20 : 12),
+                  child: Column(
                     children: [
-                      Icon(
-                        Icons.local_fire_department,
-                        color: Colors.white,
-                        size: 32,
+                      // Logo Section
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: ClipOval(
+                              child: Image.asset(
+                                "assets/bfp_logo.jpg",
+                                width: sidebarOpen ? 50 : 35,
+                                height: sidebarOpen ? 50 : 35,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    width: sidebarOpen ? 50 : 35,
+                                    height: sidebarOpen ? 50 : 35,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.local_fire_department,
+                                      color: AppColors.primaryRed,
+                                      size: sidebarOpen ? 30 : 20,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                          if (sidebarOpen) ...[
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'BFP',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                                Text(
+                                  'Bureau of Fire Protection',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.8),
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
                       ),
+
                       if (sidebarOpen) ...[
-                        const SizedBox(width: 10),
-                        Text(
-                          'BFP',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                        const SizedBox(height: 20),
+
+                        // 👤 USER INFO SECTION - ENHANCED
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              // User Avatar
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.withOpacity(0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.person_outline,
+                                  color: Colors.amber.shade300,
+                                  size: 30,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              // User Details
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      widget.userData['full_name'] ??
+                                          'Admin User',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            widget.userData['role'] == 'Admin'
+                                            ? Colors.purple.withOpacity(0.2)
+                                            : Colors.blue.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        widget.userData['role'] ?? 'Admin',
+                                        style: TextStyle(
+                                          color:
+                                              widget.userData['role'] == 'Admin'
+                                              ? Colors.purple.shade200
+                                              : Colors.blue.shade200,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Online Status
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: Colors.green,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.green.withOpacity(0.5),
+                                      blurRadius: 4,
+                                      spreadRadius: 1,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -116,16 +260,25 @@ class _WebLandingPageState extends State<WebLandingPage> {
                 // Divider
                 Container(
                   height: 1,
-                  color: Colors.white.withOpacity(0.2),
                   margin: EdgeInsets.symmetric(
-                    horizontal: sidebarOpen ? 16 : 8,
+                    horizontal: sidebarOpen ? 20 : 8,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.transparent,
+                        Colors.white.withOpacity(0.5),
+                        Colors.transparent,
+                      ],
+                    ),
                   ),
                 ),
 
-                // Sidebar Menu Items - Simplified
+                // Sidebar Menu Items - Enhanced
                 Expanded(
                   child: ListView(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                     children: menuItems.map((item) {
                       return _buildSidebarMenuItem(
                         icon: item['icon'] as IconData,
@@ -141,32 +294,42 @@ class _WebLandingPageState extends State<WebLandingPage> {
                   ),
                 ),
 
-                // Logout Button
+                // Logout Button - Enhanced
                 Container(
                   margin: EdgeInsets.all(sidebarOpen ? 16 : 8),
                   child: InkWell(
-                    onTap: () {},
-                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => _showLogoutDialog(),
+                    borderRadius: BorderRadius.circular(12),
                     child: Container(
                       padding: EdgeInsets.symmetric(
-                        horizontal: sidebarOpen ? 16 : 12,
-                        vertical: 12,
+                        horizontal: sidebarOpen ? 20 : 12,
+                        vertical: 14,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.darkRed,
-                        borderRadius: BorderRadius.circular(8),
+                        gradient: LinearGradient(
+                          colors: [Colors.red.shade800, Colors.red.shade900],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.1),
+                        ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.logout, color: Colors.white, size: 20),
+                          Icon(
+                            Icons.logout_rounded,
+                            color: Colors.white,
+                            size: 22,
+                          ),
                           if (sidebarOpen) ...[
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 12),
                             Text(
                               'Logout',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontWeight: FontWeight.w500,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
@@ -175,50 +338,96 @@ class _WebLandingPageState extends State<WebLandingPage> {
                     ),
                   ),
                 ),
-
-                // Toggle Sidebar Button
-                Container(
-                  height: 50,
-                  color: AppColors.darkRed,
-                  child: InkWell(
-                    onTap: () {
-                      setState(() {
-                        sidebarOpen = !sidebarOpen;
-                      });
-                    },
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          sidebarOpen
-                              ? Icons.chevron_left
-                              : Icons.chevron_right,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                        if (sidebarOpen) ...[
-                          const SizedBox(width: 8),
-                          Text(
-                            'Collapse',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
 
-          // Main Content Area
-          Expanded(child: currentScreen),
+          // Main Content Area with Header
+          Expanded(
+            child: Column(
+              children: [
+                // Top Bar with Page Title and Quick Actions
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        menuItems.firstWhere(
+                          (item) => item['id'] == selectedMenu,
+                        )['icon'],
+                        color: AppColors.primaryRed,
+                        size: 28,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        currentTitle,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      // Quick Actions
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.notifications_none,
+                              color: Colors.grey[600],
+                              size: 20,
+                            ),
+                            const SizedBox(width: 4),
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryRed,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Text(
+                                '3',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Page Content
+                Expanded(child: currentScreen),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  // Simplified Sidebar Menu Item
+  // Enhanced Sidebar Menu Item
   Widget _buildSidebarMenuItem({
     required IconData icon,
     required String label,
@@ -226,41 +435,108 @@ class _WebLandingPageState extends State<WebLandingPage> {
     required Function onTap,
   }) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
       decoration: BoxDecoration(
-        color: isActive ? Colors.white.withOpacity(0.2) : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
+        gradient: isActive
+            ? LinearGradient(
+                colors: [
+                  Colors.white.withOpacity(0.2),
+                  Colors.white.withOpacity(0.1),
+                ],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              )
+            : null,
       ),
-      child: InkWell(
-        onTap: () {
-          onTap();
-        },
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: sidebarOpen ? 16 : 8,
-            vertical: 12,
-          ),
-          child: Row(
-            mainAxisAlignment: sidebarOpen
-                ? MainAxisAlignment.start
-                : MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: Colors.white, size: 22),
-              if (sidebarOpen) ...[
-                const SizedBox(width: 12),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => onTap(),
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: sidebarOpen ? 16 : 8,
+              vertical: 14,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? Colors.white.withOpacity(0.2)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isActive
+                        ? Colors.white
+                        : Colors.white.withOpacity(0.8),
+                    size: 22,
                   ),
                 ),
+                if (sidebarOpen) ...[
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: isActive
+                            ? Colors.white
+                            : Colors.white.withOpacity(0.8),
+                        fontSize: 14,
+                        fontWeight: isActive
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                  if (isActive)
+                    Container(
+                      width: 4,
+                      height: 4,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  // Logout Confirmation Dialog
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: Text(
+          'Are you sure you want to logout, ${widget.userData['full_name']}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // Implement logout logic
+              Navigator.pop(context);
+              // Navigate to login screen
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryRed,
+            ),
+            child: const Text('Logout'),
+          ),
+        ],
       ),
     );
   }

@@ -39,7 +39,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     try {
       final response = await ApiPhp(
         tableName: "inspection_reports",
-      ).select(subURl: 'https://luvpark.ph/luvtest/mapping/reports_list.php');
+      ).select(subURl: 'http://192.168.11.150/mapping/reports_list.php');
 
       if (response["success"]) {
         List data = response["data"];
@@ -53,18 +53,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
         isLoading = false;
       });
     } catch (e) {
-      print('Error: $e');
       setState(() {
         isLoading = false;
       });
     }
   }
 
-  Future<void> _fetchReportDetails(int reportId) async {
+  Future<void> _fetchReportDetails(int reportId, reportsData) async {
     try {
-      final url = Uri.parse(
-        'https://luvpark.ph/luvtest/mapping/report_details.php',
-      );
+      final url = Uri.parse('http://192.168.11.150/mapping/report_details.php');
 
       final response = await http.post(
         url,
@@ -80,15 +77,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
           if (jsonResponse['debug']['has_missing_templates']) {}
         }
 
-        print('🔥 RAW API RESPONSE: ${jsonResponse.keys}');
-
         if (jsonResponse["success"] == true) {
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => ReportDetailsScreen(
-                report: jsonResponse, // Pass the raw JSON response
+                reportDetails: jsonResponse,
                 onStatusUpdated: _fetchReports,
+                reportsData: reportsData,
               ),
             ),
           );
@@ -99,7 +95,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         throw Exception('HTTP ${response.statusCode}');
       }
     } catch (e) {
-      print('Error: $e');
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
@@ -296,6 +292,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   void _navigateToReportDetails(Map<String, dynamic> report) {
-    _fetchReportDetails(report["report_id"]);
+    _fetchReportDetails(report["report_id"], report);
   }
 }

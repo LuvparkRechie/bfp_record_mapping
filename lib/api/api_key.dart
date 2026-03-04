@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 
 Future<dynamic> getAddressFromLatLngOSM(double lat, double lon) async {
@@ -35,7 +37,7 @@ Future<dynamic> getAddressFromLatLngOSM(double lat, double lon) async {
 }
 
 class ApiPhp {
-  final String baseUrl = 'https://luvpark.ph/luvtest/mapping/api.php';
+  final String baseUrl = 'http://192.168.11.150/mapping/api.php'; //my wifi
   final String tableName;
   final Map<String, dynamic>? parameters;
   final Map<String, dynamic>? whereClause;
@@ -43,7 +45,7 @@ class ApiPhp {
   final int? limit;
   final int timeoutSeconds;
 
-  const ApiPhp({
+  ApiPhp({
     required this.tableName,
     this.parameters,
     this.whereClause,
@@ -55,6 +57,8 @@ class ApiPhp {
   Future<Map<String, dynamic>> _checkInternetConnection() async {
     try {
       final connectivityResult = await Connectivity().checkConnectivity();
+      // ignore: unrelated_type_equality_checks
+
       if (connectivityResult == ConnectivityResult.none) {
         return {
           "success": false,
@@ -115,8 +119,15 @@ class ApiPhp {
   ) async {
     // Check internet connection first
     final internetCheck = await _checkInternetConnection();
+
     if (!internetCheck["success"]) {
-      return internetCheck;
+      return {
+        "success": false,
+        "statusCode": 0,
+        "message": "Connection failed (OS Error: Network is unreachable.",
+        "error": "client_exception",
+        "data": null,
+      };
     }
 
     try {
@@ -185,7 +196,7 @@ class ApiPhp {
   Future<Map<String, dynamic>> finishReport(Map<String, dynamic> data) async {
     return await _handleRequest(
       http.post(
-        Uri.parse("https://luvpark.ph/luvtest/bfp_finish_reports.php"),
+        Uri.parse("http://192.168.11.150/bfp_finish_reports.php"),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(data),
       ),
@@ -193,7 +204,7 @@ class ApiPhp {
   }
 
   Future<Map<String, dynamic>> insertAdminAlert() async {
-    String alertUrl = "https://luvpark.ph/luvtest/admin_alert.php";
+    String alertUrl = "http://192.168.11.150/admin_alert.php";
     return await _handleRequest(
       http.post(
         Uri.parse(alertUrl),
@@ -208,7 +219,7 @@ class ApiPhp {
   }
 
   Future<Map<String, dynamic>> insertMood() async {
-    String alertUrl = "https://luvpark.ph/luvtest/mood_entry.php";
+    String alertUrl = "http://192.168.11.150/mood_entry.php";
     return await _handleRequest(
       http.post(
         Uri.parse(alertUrl),
@@ -318,9 +329,7 @@ class ApiPhp {
   Future<Map<String, dynamic>> submitReportWithImage({
     required XFile image,
   }) async {
-    final uri = Uri.parse(
-      "https://luvpark.ph/luvtest/bfp_incident_reports.php",
-    );
+    final uri = Uri.parse("http://192.168.11.150/bfp_incident_reports.php");
 
     var request = http.MultipartRequest('POST', uri);
 
@@ -355,74 +364,192 @@ class ApiPhp {
   }
 
   static Future<Map<String, dynamic>> uploadEstablishmentDocument({
-    required dynamic file, // Can be String path or FilePickerResult
+    required dynamic file,
     required int establishmentId,
-    required String establishmentName, // ADD THIS
-    required String documentType,
+    required String establishmentName,
+    required String documentType, // 'fsic', 'cro', 'fca'
     String? expiryDate,
+    String serverUrl = "http://192.168.11.150/mapping/upload_file.php",
   }) async {
-    final uri = Uri.parse("https://luvpark.ph/luvtest/mapping/upload_file.php");
-
-    var request = http.MultipartRequest('POST', uri);
-
-    late List<int> bytes;
-    late String filename;
-
-    // Handle different input types
-    if (file is FilePickerResult) {
-      // Web: Use bytes directly from FilePickerResult
-      final pickedFile = file.files.single;
-      bytes = pickedFile.bytes!;
-      filename = pickedFile.name;
-    } else if (file is String) {
-      // Mobile: Read from file path
-      final fileObj = File(file);
-      bytes = await fileObj.readAsBytes();
-      filename = file.split('/').last;
-    } else {
-      return {"success": false, "message": "Invalid file format"};
-    }
-
-    // Add file using fromBytes (works on web)
-    request.files.add(
-      http.MultipartFile.fromBytes(
-        'file',
-        bytes,
-        filename: filename,
-        contentType: http.MediaType('application', 'octet-stream'),
-      ),
-    );
-
-    // Add fields
-    request.fields['establishment_id'] = establishmentId.toString();
-    request.fields['establishment_name'] = establishmentName; // ADD THIS
-    request.fields['document_type'] = documentType;
-
-    // Only add expiry_date for FSIC and if provided
-    if (documentType == 'fsic' && expiryDate != null) {
-      request.fields['expiry_date'] = expiryDate;
-    }
-
     try {
+      final uri = Uri.parse(serverUrl);
+      final request = http.MultipartRequest('POST', uri);
+
+      late List<int> bytes;
+      late String filename;
+      late String mimeType;
+
+      // Handle different input types
+      if (file is FilePickerResult) {
+        final pickedFile = file.files.single;
+        bytes = pickedFile.bytes!;
+        filename = pickedFile.name;
+        mimeType = pickedFile.extension == 'pdf'
+            ? 'application/pdf'
+            : pickedFile.extension == 'docx'
+            ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            : 'image/${pickedFile.extension}';
+      } else if (file is String) {
+        final fileObj = File(file);
+        bytes = await fileObj.readAsBytes();
+        filename = file.split('/').last;
+        final ext = filename.split('.').last.toLowerCase();
+        mimeType = ext == 'pdf'
+            ? 'application/pdf'
+            : ext == 'docx'
+            ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            : 'image/$ext';
+      } else {
+        return {"success": false, "message": "Invalid file format"};
+      }
+
+      // Add file to request
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          bytes,
+          filename: filename,
+          contentType: MediaType.parse(mimeType),
+        ),
+      );
+
+      // Add required fields
+      request.fields['establishment_id'] = establishmentId.toString();
+      request.fields['establishment_name'] = establishmentName;
+      request.fields['document_type'] = documentType;
+
+      if (documentType == 'fsic' && expiryDate != null) {
+        request.fields['expiry_date'] = expiryDate;
+      }
+
+      // Send request
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
-      if (response.statusCode == 200) {
+      // Parse JSON safely
+      try {
         final body = json.decode(response.body);
         return {
-          "success": body["success"],
-          "message": body["message"] ?? "Upload successful",
+          "success": body["success"] ?? false,
+          "message": body["message"] ?? "Upload completed",
           "file_path": body["file_path"],
           "file_name": body["file_name"],
+          "original_name": body["original_name"],
         };
-      } else {
+      } catch (_) {
+        // If server returns HTML (like PHP warnings), don't crash
         return {
           "success": false,
-          "message": "Upload failed with status: ${response.statusCode}",
+          "message":
+              "Server returned invalid JSON. Check PHP errors or upload limits.",
+          "raw": response.body,
         };
       }
     } catch (e) {
       return {"success": false, "message": "Upload error: ${e.toString()}"};
+    }
+  }
+
+  static Future<Map<String, dynamic>?> uploadPngFile({
+    required Uint8List signatureBytes,
+    required String fileName,
+  }) async {
+    try {
+      // Create multipart request
+      var uri = Uri.parse('http://192.168.11.150/mapping/upload_signature.php');
+      var request = http.MultipartRequest('POST', uri);
+
+      // Add the Uint8List directly as file
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'signature',
+          signatureBytes,
+          filename: fileName,
+          contentType: MediaType('image', 'png'),
+        ),
+      );
+
+      // Add filename parameter
+      request.fields['file_name'] = fileName;
+
+      // Send request
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+      var responseData = json.decode(response.body);
+
+      if (responseData['success']) {
+        String signaturePath = responseData['file_path'];
+
+        return {
+          'success': true,
+          'file_path': signaturePath,
+          'file_name': fileName,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Upload failed',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>?> deleteSignatureFile({
+    String? filePath,
+    String? fileName,
+    int? userId,
+    bool? isUpdate,
+  }) async {
+    try {
+      // Prepare the request
+      var uri = Uri.parse('http://192.168.11.150/mapping/delete_signature.php');
+
+      // Prepare the data
+      Map<String, dynamic> requestData = {};
+
+      if (filePath != null && filePath.isNotEmpty) {
+        requestData['file_path'] = filePath;
+      }
+      if (fileName != null && fileName.isNotEmpty) {
+        requestData['file_name'] = fileName;
+      }
+      if (userId != null) {
+        requestData['user_id'] = userId;
+      }
+      if (isUpdate != null) {
+        requestData['is_update'] = isUpdate;
+      }
+
+      // Make the request
+      var response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(requestData),
+      );
+
+      // Parse response
+      if (response.statusCode == 200) {
+        try {
+          var responseData = json.decode(response.body);
+          return responseData;
+        } catch (e) {
+          return {
+            'success': false,
+            'message': 'Invalid JSON response',
+            'rawResponse': response.body,
+          };
+        }
+      } else {
+        return {
+          'success': false,
+          'message': 'Server error: ${response.statusCode}',
+          'statusCode': response.statusCode,
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e'};
     }
   }
 
@@ -505,7 +632,7 @@ class ApiPhp {
 
   Future<List<String>> fetchReportImages(int reportId) async {
     final url =
-        'https://luvpark.ph/luvtest/bfp_get_img_uploads.php?report_id=$reportId';
+        'http://192.168.11.150/bfp_get_img_uploads.php?report_id=$reportId';
 
     final response = await http.get(Uri.parse(url));
 
@@ -525,7 +652,7 @@ class ApiPhp {
     required String email,
     required String password,
   }) async {
-    final url = Uri.parse("https://luvpark.ph/luvtest/mapping/login.php");
+    final url = Uri.parse("http://192.168.11.150/mapping/login.php");
 
     try {
       // Check internet connection first

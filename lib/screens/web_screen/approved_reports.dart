@@ -540,37 +540,118 @@ class _ApprovedReportDetailsScreenState
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
 
-                // Stats
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildStat('Total', '${reportData['total_items'] ?? 0}'),
-                      _buildStat(
-                        'Passed',
-                        '${reportData['passed_items'] ?? 0}',
-                        color: Colors.green[700],
-                      ),
-                      _buildStat(
-                        'Failed',
-                        '${reportData['failed_items'] ?? 0}',
-                        color: Colors.red[700],
-                      ),
-                    ],
-                  ),
-                ),
                 const SizedBox(height: 24),
 
                 // Checklist Sections
                 ...groupedAnswers.entries.map(
                   (entry) => _buildSection(entry.key, entry.value),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 19.0, right: 19),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            Text("Representative Signature:"),
+                            Container(
+                              margin: EdgeInsets.only(top: 0),
+                              width: 150,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(color: Colors.black54),
+                                ),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  "http://192.168.11.150/mapping/get_img.php?file=${reportData["owner_signature_path"]}",
+                                  fit: BoxFit.contain,
+                                  loadingBuilder:
+                                      (context, child, loadingProgress) {
+                                        if (loadingProgress == null) {
+                                          return child;
+                                        }
+                                        return const Center(
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        );
+                                      },
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      color: Colors.white,
+                                      child: Center(
+                                        child: Icon(
+                                          Icons.edit,
+                                          size: 30,
+                                          color: Colors.grey[400],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            Text("Inspector Signature:"),
+                            Container(
+                              margin: EdgeInsets.only(top: 0),
+                              width: 150,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(color: Colors.black54),
+                                ),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  "http://192.168.11.150/mapping/get_img.php?file=${reportData["inspector_signature"]}",
+                                  fit: BoxFit.contain,
+                                  loadingBuilder:
+                                      (context, child, loadingProgress) {
+                                        if (loadingProgress == null) {
+                                          return child;
+                                        }
+                                        return const Center(
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        );
+                                      },
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      color: Colors.white,
+                                      child: Center(
+                                        child: Icon(
+                                          Icons.edit,
+                                          size: 30,
+                                          color: Colors.grey[400],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
 
                 const SizedBox(height: 24),
@@ -985,13 +1066,10 @@ class _ApprovedReportDetailsScreenState
         builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
-      final response =
-          await ApiPhp(
-            tableName: "inspection_reports",
-            parameters: {'report_id': reportId, 'action': status},
-          ).update(
-            subUrl: 'https://luvpark.ph/luvtest/mapping/approve_reports.php',
-          );
+      final response = await ApiPhp(
+        tableName: "inspection_reports",
+        parameters: {'report_id': reportId, 'action': status},
+      ).update(subUrl: 'http://192.168.11.150/mapping/approve_reports.php');
 
       Navigator.pop(context);
 

@@ -1,4 +1,7 @@
 import 'package:bfp_record_mapping/api/api_key.dart';
+import 'package:bfp_record_mapping/database/assigned_task_db.dart';
+import 'package:bfp_record_mapping/database/sqlite_database.dart';
+import 'package:bfp_record_mapping/functions.dart';
 import 'package:bfp_record_mapping/screens/inspector_screen/checklist.dart';
 import 'package:bfp_record_mapping/shared_pref.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +17,8 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
   bool isLoading = true;
   List assignedData = [];
   Map userData = {};
+  bool hasNet = true;
+  final dbHelper = AssignedTaskDatabase.instance;
 
   @override
   void initState() {
@@ -21,7 +26,40 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
     getAssignedSTask();
   }
 
+  void _getAssignedTaskLocally(int assignedID) async {
+    setState(() {
+      isLoading = true;
+      hasNet = true;
+    });
+    final Map<String, dynamic> param = {"status": "IN_REVIEW"};
+    await dbHelper.updateTask(assignedID, param);
+    final allAssignedData = await dbHelper.getAllTasks();
+    await Future.delayed(Duration(seconds: 1));
+    setState(() {
+      assignedData = allAssignedData;
+      isLoading = false;
+      hasNet = true;
+    });
+  }
+
+  void _deleteExcessData(List resExceedData) async {
+    final allData = await dbHelper.getAllTasks();
+
+    final storedIds = allData.map((e) => e['assigned_id']).toSet();
+    final excessData = resExceedData
+        .where((objData) => objData["assigned_id"] == storedIds)
+        .toList();
+    if (excessData.isNotEmpty) {
+      for (var dataRow in excessData) {
+        await dbHelper.deleteTask(dataRow["assigned_id"]);
+      }
+    }
+  }
+
   void getAssignedSTask() async {
+    await dbHelper.deleteAllTasks();
+    await DatabaseHelper.instance.deleteAllSyncedReports();
+    await DatabaseHelper.instance.deleteAllSignatures();
     userData = await StoreCredentials.getUserData();
     setState(() {
       isLoading = true;
@@ -32,7 +70,8 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
       final joinConfig = {
         'join':
             'INNER JOIN establishments e ON e.establishment_id = assigned_inspections.establishment_id',
-        'columns': 'assigned_inspections.*, e.business_name,e.street_address',
+        'columns':
+            'assigned_inspections.*, e.business_name,e.street_address,e.latitude,e.longitude',
         'where': 'assigned_inspections.inspector_id = ?',
         'where_params': [userData["id"]],
         'orderBy': 'assigned_inspections.assigned_id DESC',
@@ -40,11 +79,29 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
       };
 
       final response = await api.selectWithJoin(joinConfig);
-      print("response $response");
+
+      List responseData = response['data'] == null ? [] : response["data"];
+
       if (response['success']) {
+        _deleteExcessData(responseData);
+        for (var rowData in responseData) {
+          final existData = await dbHelper.getTaskById(rowData["assigned_id"]);
+
+          if (existData!.isEmpty) {
+            dbHelper.insertTask(rowData);
+          }
+        }
+        final allAssignedData = await dbHelper.getAllTasks();
+
         setState(() {
-          assignedData = response['data'];
+          assignedData = allAssignedData;
           isLoading = false;
+          hasNet = true;
+        });
+      } else {
+        setState(() {
+          isLoading = false;
+          hasNet = false;
         });
       }
     } catch (e) {
@@ -109,7 +166,6 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
       final date = DateTime.parse(dateStr);
       return '${date.day} ${_getMonthName(date.month)} ${date.year}';
     } catch (e) {
-      print('Error formatting date: $e for value: $dateValue');
       return 'Date N/A';
     }
   }
@@ -187,232 +243,215 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header with improved design
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        child: !hasNet
+            ? GestureDetector(
+                onTap: () async {
+                  setState(() {
+                    isLoading = true;
+                    hasNet = true;
+                  });
+                  await Future.delayed(Duration(milliseconds: 500));
+                  getAssignedSTask();
+                },
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    Icon(
+                      Icons
+                          .signal_wifi_statusbar_connected_no_internet_4_outlined,
+                      size: 40,
+                      color: Colors.red,
+                    ),
+                    SizedBox(height: 30),
                     Text(
-                      'Today\'s Schedule',
+                      'Network error: Connection failed.',
                       style: TextStyle(
-                        fontSize: 22,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: Colors.grey.shade900,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '${assignedData.length} inspection${assignedData.length != 1 ? 's' : ''} scheduled',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.blue.shade700,
-                        ),
+                    SizedBox(height: 10),
+                    Text(
+                      'Please tap to retry',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey,
                       ),
                     ),
                   ],
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header with improved design
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Icon(
-                        Icons.calendar_today,
-                        size: 16,
-                        color: Colors.red.shade600,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Today\'s Schedule',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey.shade900,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              '${assignedData.length} inspection${assignedData.length != 1 ? 's' : ''} scheduled',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _formatDate(DateTime.now().toIso8601String()),
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.grey.shade800,
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () async {
-                  getAssignedSTask();
-                },
-                color: Colors.red,
-                backgroundColor: Colors.white,
-                child: isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(color: Colors.red),
-                      )
-                    : assignedData.isEmpty
-                    ? Center(
-                        child: ListView(
-                          padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
                           children: [
-                            SizedBox(height: 100),
-                            Container(
-                              width: 100,
-                              height: 100,
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.inbox_outlined,
-                                size: 50,
-                                color: Colors.grey.shade400,
-                              ),
+                            Icon(
+                              Icons.calendar_today,
+                              size: 16,
+                              color: Colors.red.shade600,
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(width: 8),
                             Text(
-                              'No inspections scheduled',
+                              _formatDate(DateTime.now().toIso8601String()),
                               style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
                                 color: Colors.grey.shade800,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'You\'re all caught up!',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade600,
                               ),
                             ),
                           ],
                         ),
-                      )
-                    : ListView.separated(
-                        itemCount: assignedData.length,
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final inspection = assignedData[index];
-                          final status = inspection["status"] ?? 'PENDING';
-                          final formattedTime = _formatTime(
-                            inspection['schedule_date'],
-                          );
-                          final formattedDate = _formatDate(
-                            inspection['schedule_date'],
-                          );
-                          final isPending = status == 'PENDING';
-                          final isInReview = status == 'IN_REVIEW';
-
-                          return Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              border: isInReview
-                                  ? Border.all(
-                                      color: Colors.blue.shade200,
-                                      width: 1,
-                                    )
-                                  : null,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: () async {
+                        getAssignedSTask();
+                      },
+                      color: Colors.red,
+                      backgroundColor: Colors.white,
+                      child: isLoading
+                          ? GestureDetector(
+                              onTap: getAssignedSTask,
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  color: Colors.red,
                                 ),
-                              ],
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              ),
+                            )
+                          : assignedData.isEmpty
+                          ? Center(
+                              child: ListView(
+                                padding: const EdgeInsets.all(16),
                                 children: [
-                                  // Time Circle with improved design
+                                  SizedBox(height: 100),
                                   Container(
-                                    width: 65,
-                                    height: 65,
+                                    width: 100,
+                                    height: 100,
                                     decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: isInReview
-                                            ? [
-                                                Colors.blue.shade400,
-                                                Colors.blue.shade600,
-                                              ]
-                                            : [
-                                                Colors.red.shade400,
-                                                Colors.red.shade600,
-                                              ],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
+                                      color: Colors.grey.shade100,
                                       shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color:
-                                              (isInReview
-                                                      ? Colors.blue
-                                                      : Colors.red)
-                                                  .withOpacity(0.3),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
                                     ),
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          formattedTime.contains('--')
-                                              ? '--:--'
-                                              : formattedTime.split(' ')[0],
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                        if (!formattedTime.contains('--'))
-                                          Text(
-                                            formattedTime.split(' ')[1],
-                                            style: const TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.white70,
-                                            ),
-                                          ),
-                                      ],
+                                    child: Icon(
+                                      Icons.inbox_outlined,
+                                      size: 50,
+                                      color: Colors.grey.shade400,
                                     ),
                                   ),
-                                  const SizedBox(width: 16),
+                                  const SizedBox(height: 20),
+                                  Text(
+                                    'No inspections scheduled',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.grey.shade800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'You\'re all caught up!',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: assignedData.length,
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(height: 12),
+                              itemBuilder: (context, index) {
+                                final inspection = assignedData[index];
+                                final status =
+                                    inspection["status"] ?? 'PENDING';
+                                final formattedTime = _formatTime(
+                                  inspection['schedule_date'],
+                                );
+                                final formattedDate = _formatDate(
+                                  inspection['schedule_date'],
+                                );
+                                final isPending = status == 'PENDING';
+                                final isInReview = status == 'IN_REVIEW';
 
-                                  // Content
-                                  Expanded(
+                                return Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: isInReview
+                                        ? Border.all(
+                                            color: Colors.blue.shade200,
+                                            width: 1,
+                                          )
+                                        : null,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.05),
+                                        blurRadius: 20,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
                                     child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
@@ -420,16 +459,34 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
                                         Row(
                                           children: [
                                             Expanded(
-                                              child: Text(
-                                                inspection['business_name'] ??
-                                                    'Unknown Business',
-                                                style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Colors.grey.shade900,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    inspection['business_name']
+                                                        .toString()
+                                                        .toUpperCase(),
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color:
+                                                          Colors.grey.shade900,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                  SizedBox(height: 4),
+                                                  Text(
+                                                    "Carlos hilado highway",
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      color: Colors.grey[600],
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
                                             const SizedBox(width: 8),
@@ -495,41 +552,59 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
                                           ),
                                           child: Row(
                                             children: [
-                                              Icon(
-                                                Icons.calendar_today_outlined,
-                                                size: 14,
-                                                color: Colors.grey.shade600,
-                                              ),
-                                              const SizedBox(width: 6),
                                               Expanded(
-                                                child: Text(
-                                                  formattedDate,
-                                                  style: TextStyle(
-                                                    fontSize: 13,
-                                                    color: Colors.grey.shade700,
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Container(
-                                                width: 1,
-                                                height: 12,
-                                                color: Colors.grey.shade300,
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Icon(
-                                                Icons.access_time_outlined,
-                                                size: 14,
-                                                color: Colors.grey.shade600,
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Expanded(
-                                                child: Text(
-                                                  formattedTime,
-                                                  style: TextStyle(
-                                                    fontSize: 13,
-                                                    color: Colors.grey.shade700,
-                                                  ),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      children: [
+                                                        Icon(
+                                                          Icons
+                                                              .calendar_today_outlined,
+                                                          size: 14,
+                                                          color: Colors
+                                                              .grey
+                                                              .shade600,
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 6,
+                                                        ),
+                                                        Expanded(
+                                                          child: Text(
+                                                            formattedDate,
+                                                            style: TextStyle(
+                                                              fontSize: 16,
+                                                              color:
+                                                                  Colors.black,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 12,
+                                                        ),
+                                                        Container(
+                                                          width: 1,
+                                                          height: 12,
+                                                          color: Colors
+                                                              .grey
+                                                              .shade300,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    SizedBox(height: 5),
+                                                    Text(
+                                                      "Scheduled date",
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        color: Colors
+                                                            .grey
+                                                            .shade700,
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
                                             ],
@@ -539,91 +614,131 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
                                         if (isPending) ...[
                                           const SizedBox(height: 12),
                                           // Start Button
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: ElevatedButton(
-                                              onPressed: () async {
-                                                print(
-                                                  "establishmentName ${inspection['street_address']}",
-                                                );
-
-                                                print(
-                                                  "establishmentName ${inspection['establishment_id']}",
-                                                );
-                                                print(
-                                                  "establishmentName ${inspection['assigned_id']}",
-                                                );
-                                                print(
-                                                  "establishmentName ${userData}",
-                                                );
-                                                final result = await Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (_) => ChecklistPage(
-                                                      establishmentId:
-                                                          inspection['establishment_id'],
-                                                      establishmentName:
-                                                          inspection['business_name'],
-                                                      address:
-                                                          inspection['street_address'],
-                                                      inspectionId:
-                                                          inspection['assigned_id'],
-                                                      userData: userData,
+                                          Row(
+                                            children: [
+                                              SizedBox(
+                                                width: 80,
+                                                child: ElevatedButton(
+                                                  onPressed: () async {
+                                                    Functions.viewOnMap({
+                                                      "latitude":
+                                                          inspection["latitude"],
+                                                      "longitude":
+                                                          inspection["longitude"],
+                                                    }, context);
+                                                  },
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor:
+                                                        Colors.blue,
+                                                    foregroundColor:
+                                                        Colors.white,
+                                                    elevation: 0,
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          vertical: 12,
+                                                        ),
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            30,
+                                                          ),
                                                     ),
                                                   ),
-                                                );
-                                                if (result == true) {
-                                                  getAssignedSTask();
-                                                }
-                                              },
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.red,
-                                                foregroundColor: Colors.white,
-                                                elevation: 0,
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      vertical: 12,
-                                                    ),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(30),
+                                                  child: const Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .center,
+                                                    children: [
+                                                      Icon(
+                                                        Icons.directions,
+                                                        size: 18,
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
                                               ),
-                                              child: const Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: [
-                                                  Icon(
-                                                    Icons.play_arrow,
-                                                    size: 18,
-                                                  ),
-                                                  SizedBox(width: 8),
-                                                  Text(
-                                                    'Start Inspection',
-                                                    style: TextStyle(
-                                                      fontSize: 14,
-                                                      fontWeight:
-                                                          FontWeight.w600,
+                                              SizedBox(width: 10),
+                                              Expanded(
+                                                child: ElevatedButton(
+                                                  onPressed: () async {
+                                                    final result = await Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (_) => ChecklistPage(
+                                                          establishmentId:
+                                                              inspection['establishment_id'],
+                                                          establishmentName:
+                                                              inspection['business_name'],
+                                                          address:
+                                                              inspection['street_address'],
+                                                          inspectionId:
+                                                              inspection['assigned_id'],
+                                                          inspectionData:
+                                                              inspection,
+                                                          userData: userData,
+                                                        ),
+                                                      ),
+                                                    );
+                                                    if (result != null) {
+                                                      print(
+                                                        "result assignedID $result",
+                                                      );
+                                                      _getAssignedTaskLocally(
+                                                        result,
+                                                      );
+                                                    }
+                                                  },
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: Colors.red,
+                                                    foregroundColor:
+                                                        Colors.white,
+                                                    elevation: 0,
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          vertical: 12,
+                                                        ),
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            30,
+                                                          ),
                                                     ),
                                                   ),
-                                                ],
+                                                  child: const Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .center,
+                                                    children: [
+                                                      Icon(
+                                                        Icons.play_arrow,
+                                                        size: 18,
+                                                      ),
+                                                      SizedBox(width: 8),
+                                                      Text(
+                                                        'Start Inspection',
+                                                        style: TextStyle(
+                                                          fontSize: 14,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
                                               ),
-                                            ),
+                                            ],
                                           ),
                                         ],
                                       ],
                                     ),
                                   ),
-                                ],
-                              ),
+                                );
+                              },
                             ),
-                          );
-                        },
-                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }

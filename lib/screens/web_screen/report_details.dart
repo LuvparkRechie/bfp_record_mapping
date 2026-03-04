@@ -1,21 +1,41 @@
 import 'package:bfp_record_mapping/api/api_key.dart';
+import 'package:bfp_record_mapping/helper/image_network_helper.dart';
 import 'package:flutter/material.dart';
 
-class ReportDetailsScreen extends StatelessWidget {
-  final Map<String, dynamic> report;
+class ReportDetailsScreen extends StatefulWidget {
+  final Map<String, dynamic> reportDetails;
   final VoidCallback onStatusUpdated;
+  final Map<String, dynamic> reportsData;
 
   const ReportDetailsScreen({
     super.key,
-    required this.report,
+    required this.reportDetails,
     required this.onStatusUpdated,
+    required this.reportsData,
   });
 
   @override
+  State<ReportDetailsScreen> createState() => _ReportDetailsScreenState();
+}
+
+class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Debug the signature
+      SignatureDebugger.debugSignature(
+        widget.reportsData['inspector_signature'],
+      );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final reportData = report['report'] ?? {};
-    final groupedAnswers = report['grouped_answers'] as Map? ?? {};
-    print('All sections: ${groupedAnswers.keys.toList()}');
+    final reportData = widget.reportDetails['report'] ?? {};
+    final groupedAnswers =
+        widget.reportDetails['grouped_answers'] as Map? ?? {};
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -51,86 +71,177 @@ class ReportDetailsScreen extends StatelessWidget {
           ? Center(
               child: Text('No data', style: TextStyle(color: Colors.grey[600])),
             )
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // Header
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        reportData['building_name'] ?? 'Unknown Building',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+          : SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          reportData['building_name'] ?? 'Unknown Building',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        reportData['building_address'] ?? '',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                      ),
-                      const Divider(height: 24),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Inspector: ${reportData['inspector_name'] ?? 'N/A'}',
+                        const SizedBox(height: 4),
+                        Text(
+                          reportData['building_address'] ?? '',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                        const Divider(height: 24),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Inspector: ${reportData['inspector_name'] ?? 'N/A'}',
+                                style: TextStyle(color: Colors.grey[700]),
+                              ),
+                            ),
+                            Text(
+                              'Date: ${_formatDate(reportData['inspection_date'])}',
                               style: TextStyle(color: Colors.grey[700]),
                             ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Checklist Sections
+                  ...groupedAnswers.entries.map(
+                    (entry) => _buildSection(entry.key, entry.value),
+                  ),
+
+                  Padding(
+                    padding: const EdgeInsets.only(left: 19.0, right: 19),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Representative Signature: ${reportData["owner_signature_path"]}",
+                              ),
+                              Container(
+                                margin: EdgeInsets.only(top: 0),
+                                width: 150,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(color: Colors.black54),
+                                  ),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    "http://192.168.11.150/mapping/get_img.php?file=${reportData["owner_signature_path"]}",
+                                    fit: BoxFit.contain,
+                                    loadingBuilder:
+                                        (context, child, loadingProgress) {
+                                          if (loadingProgress == null) {
+                                            return child;
+                                          }
+                                          return const Center(
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          );
+                                        },
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        color: Colors.white,
+                                        child: Center(
+                                          child: Icon(
+                                            Icons.edit,
+                                            size: 30,
+                                            color: Colors.grey[400],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          Text(
-                            'Date: ${_formatDate(reportData['inspection_date'])}',
-                            style: TextStyle(color: Colors.grey[700]),
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              Text("Inspector Signature:"),
+                              Container(
+                                margin: EdgeInsets.only(top: 0),
+                                width: 150,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(color: Colors.black54),
+                                  ),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    "http://192.168.11.150/mapping/get_img.php?file=${reportData["inspector_signature"]}",
+                                    fit: BoxFit.contain,
+                                    loadingBuilder:
+                                        (context, child, loadingProgress) {
+                                          if (loadingProgress == null) {
+                                            return child;
+                                          }
+                                          return const Center(
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          );
+                                        },
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        color: Colors.white,
+                                        child: Center(
+                                          child: Icon(
+                                            Icons.edit,
+                                            size: 30,
+                                            color: Colors.grey[400],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
 
-                // Stats
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildStat('Total', '${reportData['total_items'] ?? 0}'),
-                      _buildStat(
-                        'Passed',
-                        '${reportData['passed_items'] ?? 0}',
-                        color: Colors.green[700],
-                      ),
-                      _buildStat(
-                        'Failed',
-                        '${reportData['failed_items'] ?? 0}',
-                        color: Colors.red[700],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-                // Checklist Sections
-                ...groupedAnswers.entries.map(
-                  (entry) => _buildSection(entry.key, entry.value),
-                ),
-
-                const SizedBox(height: 24),
-                _buildActionButtons(reportData, context),
-                const SizedBox(height: 30),
-              ],
+                  _buildActionButtons(reportData, context),
+                  const SizedBox(height: 30),
+                ],
+              ),
             ),
     );
   }
@@ -532,7 +643,6 @@ class ReportDetailsScreen extends StatelessWidget {
     BuildContext context,
     String status,
   ) async {
-    print("reportId $reportId");
     if (reportId == null) return;
 
     try {
@@ -543,18 +653,14 @@ class ReportDetailsScreen extends StatelessWidget {
         builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
-      final response =
-          await ApiPhp(
-            tableName: "inspection_reports",
-            parameters: {'report_id': reportId, 'action': status},
-          ).update(
-            subUrl: 'https://luvpark.ph/luvtest/mapping/approve_reports.php',
-          );
+      final response = await ApiPhp(
+        tableName: "inspection_reports",
+        parameters: {'report_id': reportId, 'action': status},
+      ).update(subUrl: 'http://192.168.11.150/mapping/approve_reports.php');
 
       // Close loading dialog
       Navigator.pop(context);
 
-      print('Approve response: $response');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(response["message"]),
@@ -567,7 +673,7 @@ class ReportDetailsScreen extends StatelessWidget {
         // Show success message
 
         // Refresh the reports list
-        onStatusUpdated();
+        widget.onStatusUpdated();
 
         // Close the details screen and go back
         Navigator.pop(context);
@@ -578,7 +684,6 @@ class ReportDetailsScreen extends StatelessWidget {
       // Close loading dialog if error
       Navigator.pop(context);
 
-      print('Error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
@@ -592,15 +697,13 @@ class ReportDetailsScreen extends StatelessWidget {
   Future<void> _declineReport(int? reportId, BuildContext context) async {
     if (reportId == null) return;
 
-    // TODO: Implement decline API call
-    print('Declining report: $reportId');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Decline functionality coming soon'),
         backgroundColor: Colors.orange[700],
       ),
     );
-    onStatusUpdated();
+    widget.onStatusUpdated();
   }
 
   String _formatDate(String? date) {

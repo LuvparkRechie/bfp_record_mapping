@@ -32,9 +32,8 @@ class _BrgyScreenState extends State<BrgyScreen> {
     final result = await ApiPhp(
       tableName: "",
       parameters: {'filter': 'approved'},
-    ).select(subURl: 'https://luvpark.ph/luvtest/mapping/brgy_reports.php');
+    ).select(subURl: 'http://192.168.11.150/mapping/brgy_reports.php');
 
-    print("Brgy Response: $result");
     listOfBrgy = result["data"] ?? [];
     filteredBrgy = List.from(listOfBrgy);
 
@@ -144,93 +143,128 @@ class _BrgyScreenState extends State<BrgyScreen> {
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
-                    child: GridView.builder(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 5,
-                            crossAxisSpacing: 15,
-                            mainAxisSpacing: 0,
-                            childAspectRatio: 0.85,
-                          ),
-                      itemCount: filteredBrgy.length,
-                      itemBuilder: (context, index) {
-                        final barangay = filteredBrgy[index];
-
-                        return MouseRegion(
-                          cursor: SystemMouseCursors.click,
-                          child: GestureDetector(
-                            onTap: () => _openBarangayFolder(barangay),
-                            child: SizedBox(
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  // 📁 Folder image
-                                  Container(
-                                    child: Image.asset(
-                                      "assets/folder.png",
-                                      fit: BoxFit.contain,
-                                    ),
+                    child: filteredBrgy.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 120,
+                                  height: 120,
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue[50],
+                                    shape: BoxShape.circle,
                                   ),
-
-                                  // Barangay name centered inside folder
-                                  Positioned(
-                                    top: 50,
-                                    left: 0,
-                                    right: 0,
-                                    bottom: 0,
-                                    child: Center(
-                                      child: Container(
-                                        constraints: const BoxConstraints(
-                                          maxWidth: 100,
-                                        ),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              barangay['brgy_name'] ??
-                                                  'Unknown',
-                                              textAlign: TextAlign.center,
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w700,
-                                                color: Colors.black,
-                                              ),
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 2,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: Colors.blue[50],
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                              child: Text(
-                                                '${barangay['total_establishments'] ?? 0} estab.',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Colors.blue[700],
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
+                                  child: Icon(
+                                    Icons.folder,
+                                    size: 60,
+                                    color: Colors.blue[300],
                                   ),
-                                ],
-                              ),
+                                ),
+                                SizedBox(height: 24),
+                                Text(
+                                  'No records found',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                              ],
                             ),
+                          )
+                        : GridView.builder(
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 5,
+                                  crossAxisSpacing: 15,
+                                  mainAxisSpacing: 0,
+                                  childAspectRatio: 0.85,
+                                ),
+                            itemCount: filteredBrgy.length,
+                            itemBuilder: (context, index) {
+                              final barangay = filteredBrgy[index];
+
+                              return MouseRegion(
+                                cursor: SystemMouseCursors.click,
+                                child: GestureDetector(
+                                  onTap: () => _openBarangayFolder(barangay),
+                                  child: SizedBox(
+                                    child: Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        // 📁 Folder image
+                                        Container(
+                                          child: Image.asset(
+                                            "assets/folder.png",
+                                            fit: BoxFit.contain,
+                                          ),
+                                        ),
+
+                                        // Barangay name centered inside folder
+                                        Positioned(
+                                          top: 50,
+                                          left: 0,
+                                          right: 0,
+                                          bottom: 0,
+                                          child: Center(
+                                            child: Container(
+                                              constraints: const BoxConstraints(
+                                                maxWidth: 100,
+                                              ),
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(
+                                                    barangay['brgy_name'] ??
+                                                        'Unknown',
+                                                    textAlign: TextAlign.center,
+                                                    style: const TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: Colors.black,
+                                                    ),
+                                                    maxLines: 2,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 2,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.blue[50],
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
+                                                          ),
+                                                    ),
+                                                    child: Text(
+                                                      '${barangay['total_establishments'] ?? 0} estab.',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: Colors.blue[700],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                        );
-                      },
-                    ),
                   ),
                 ),
               ],
@@ -953,7 +987,7 @@ class YearEstablishmentsScreen extends StatelessWidget {
       );
 
       final String url =
-          "https://luvpark.ph/luvtest/mapping/download_file.php?file=$filePath";
+          "http://192.168.11.150/mapping/download_file.php?file=$filePath";
 
       final Uri uri = Uri.parse(url);
 
@@ -1112,9 +1146,7 @@ class YearEstablishmentsScreen extends StatelessWidget {
     try {
       LoadingDialog.show(context: context, message: "Loading reports...");
 
-      final url = Uri.parse(
-        'https://luvpark.ph/luvtest/mapping/report_details.php',
-      );
+      final url = Uri.parse('http://192.168.11.150/mapping/report_details.php');
 
       final response = await http.post(
         url,
@@ -1131,22 +1163,14 @@ class YearEstablishmentsScreen extends StatelessWidget {
 
         // Debug print like the reports side
         if (jsonResponse.containsKey('debug')) {
-          if (jsonResponse['debug']['has_missing_templates']) {
-            print(
-              'Has missing templates: ${jsonResponse['debug']['has_missing_templates']}',
-            );
-          }
+          if (jsonResponse['debug']['has_missing_templates']) {}
         }
-
-        print('🔥 RAW API RESPONSE: ${jsonResponse.keys}');
 
         if (jsonResponse["success"] == true) {
           if (jsonResponse.containsKey('reports') &&
               jsonResponse['reports'].isNotEmpty) {
             // Get all reports (no filtering)
             final List<dynamic> allReports = jsonResponse['reports'];
-
-            print('Total reports: ${allReports.length}');
 
             // Show list of all reports
             _showReportsList(allReports, context);
@@ -1160,7 +1184,6 @@ class YearEstablishmentsScreen extends StatelessWidget {
         throw Exception('HTTP ${response.statusCode}');
       }
     } catch (e) {
-      print('Error: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

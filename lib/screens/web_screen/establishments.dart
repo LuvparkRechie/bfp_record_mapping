@@ -16,12 +16,14 @@ class EstablishmentScreen extends StatefulWidget {
 
 class _EstablishmentScreenState extends State<EstablishmentScreen> {
   int _selectedIndex = 0;
+  bool isUpdate = false;
   bool _isLoading = false;
   List _establishments = [];
   String _searchQuery = '';
   String _selectedFilter = 'All';
   final ScrollController _scrollController = ScrollController();
   Map<String, dynamic>? userData;
+  Map<String, dynamic> _selectedRow = {};
 
   @override
   void initState() {
@@ -32,7 +34,7 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
 
   void loadUserData() async {
     userData = await StoreCredentials.getUserData();
-    print("user data $userData");
+
     setState(() {});
   }
 
@@ -40,6 +42,11 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
     setState(() => _isLoading = true);
     final result = await ApiPhp(tableName: "establishments").select();
     _establishments = result["data"];
+    _establishments.sort((a, b) {
+      final dateA = DateTime.parse(a['created_at']);
+      final dateB = DateTime.parse(b['created_at']);
+      return dateB.compareTo(dateA);
+    });
 
     setState(() => _isLoading = false);
   }
@@ -69,18 +76,19 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
   }
 
   void _addNewEstablishment() {
-    setState(() => _selectedIndex = 1);
+    setState(() {
+      _selectedIndex = 1;
+      isUpdate = false;
+      _selectedRow = {};
+    });
   }
 
   void _editEstablishment(Map<String, dynamic> establishment) {
-    setState(() => _selectedIndex = 1);
-  }
-
-  void _viewDetails(Map<String, dynamic> establishment) {
-    showDialog(
-      context: context,
-      builder: (context) => _buildDetailDialog(establishment),
-    );
+    setState(() {
+      _selectedIndex = 1;
+      isUpdate = false;
+      _selectedRow = establishment;
+    });
   }
 
   Future<dynamic> showAssignInspectionDialog(
@@ -237,10 +245,9 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
                               parameters: inspectionData,
                             ).insert(
                               subUrl:
-                                  'https://luvpark.ph/luvtest/mapping/assign_establishment.php',
+                                  'http://192.168.11.150/mapping/assign_establishment.php',
                             );
 
-                        print("response $response");
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(response["message"]),
@@ -446,7 +453,19 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
   }
 
   Widget _buildListScreen() {
-    final filteredEstablishments = _filteredEstablishments;
+    DateTime now = DateTime.now();
+    final filteredEstablishments = _filteredEstablishments.map((e) {
+      if (e["fsic_expiry_date"] != null) {
+        DateTime expiryDate = DateTime.parse(e["fsic_expiry_date"]);
+        bool isExpired = expiryDate.isBefore(now);
+
+        if (isExpired) {
+          e["inspection_status"] = "EXPIRED";
+        }
+      }
+
+      return e;
+    }).toList();
 
     return Column(
       children: [
@@ -686,7 +705,6 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
                             DataColumn(label: Text('ACTIONS')),
                           ],
                           rows: filteredEstablishments.map((establishment) {
-                            print("establishment $establishment");
                             return DataRow(
                               cells: [
                                 DataCell(
@@ -792,16 +810,32 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
                                           color: Colors.blue[600],
                                           tooltip: 'View on map',
                                         ),
-                                      IconButton(
-                                        onPressed: () =>
-                                            _editEstablishment(establishment),
-                                        icon: Icon(
-                                          Icons.edit_outlined,
-                                          size: 20,
+                                      if (establishment['inspection_status'] !=
+                                          "PASSED")
+                                        IconButton(
+                                          onPressed: () =>
+                                              _editEstablishment(establishment),
+                                          icon: Icon(
+                                            Icons.edit_outlined,
+                                            size: 20,
+                                          ),
+                                          color: Colors.orange[600],
+                                          tooltip: 'Edit',
                                         ),
-                                        color: Colors.orange[600],
-                                        tooltip: 'Edit',
-                                      ),
+                                      if (establishment['inspection_status'] ==
+                                          "EXPIRED")
+                                        IconButton(
+                                          onPressed: () {
+                                            setState(() {
+                                              _selectedIndex = 1;
+                                              isUpdate = true;
+                                              _selectedRow = establishment;
+                                            });
+                                          },
+                                          icon: Icon(Icons.update, size: 20),
+                                          color: Colors.blue[600],
+                                          tooltip: 'Renew',
+                                        ),
 
                                       if (establishment['inspection_status']
                                                   .toString()
@@ -862,7 +896,7 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
                                             size: 20,
                                           ),
                                           color: Colors.grey[600],
-                                          tooltip: 'Edit',
+                                          tooltip: 'Assign inspector',
                                         ),
                                     ],
                                   ),
@@ -888,6 +922,8 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
         return Colors.orange[400]!;
       case 'failed':
         return Colors.red[400]!;
+      case 'expired':
+        return Colors.red[400]!;
       default:
         return Colors.blue[400]!;
     }
@@ -909,6 +945,8 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
   // COMPLETE FORM SCREEN IMPLEMENTATION
   Widget _buildFormScreen() {
     return EstablishmentForm(
+      estlishmentData: _selectedRow,
+      isUpdate: isUpdate,
       onBack: () => setState(() => _selectedIndex = 0),
       onSave: () {
         setState(() => _selectedIndex = 0);
@@ -919,6 +957,8 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
 }
 
 class EstablishmentForm extends StatefulWidget {
+  final bool isUpdate;
+  final Map<String, dynamic>? estlishmentData;
   final VoidCallback onBack;
   final VoidCallback onSave;
 
@@ -926,6 +966,8 @@ class EstablishmentForm extends StatefulWidget {
     super.key,
     required this.onBack,
     required this.onSave,
+    required this.isUpdate,
+    this.estlishmentData,
   });
 
   @override
@@ -953,20 +995,45 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
   final TextEditingController _floorAreaController = TextEditingController();
   final TextEditingController _storeysController = TextEditingController();
   final TextEditingController _fsicExpiryController = TextEditingController();
+  final TextEditingController _latitude = TextEditingController();
+  final TextEditingController _longitude = TextEditingController();
 
   // Variables for dropdowns and selections
   String? _selectedBarangay;
   String? _selectedStatus = 'NEW';
 
-  bool _isActive = true;
-
-  // Sample data
+  bool isActive = true;
+  DateTime? fsicExpDate;
   List _barangays = [];
 
   @override
   void initState() {
     super.initState();
+    _loadData();
     _loadBrgy();
+  }
+
+  void _loadData() async {
+    if (!widget.isUpdate) return;
+
+    Map<String, dynamic> data = widget.estlishmentData!;
+
+    fsicExpDate = DateTime.parse(data["fsic_expiry_date"].toString());
+    _selectedStatus = "RENEWAL";
+    _businessNameController.text = data["business_name"];
+    _ownerNameController.text = data["owner_name"];
+    _representativeController.text = data["owner_name"];
+    _contactNumberController.text = data["representative_name"];
+    _streetAddressController.text = data["street_address"];
+    _townController.text = data["town"];
+    _occupancyTypeController.text = data["occupancy_type"];
+    _floorAreaController.text = data["floor_area"].toString();
+    _storeysController.text = data["no_of_storeys"].toString();
+    _latitude.text = data["latitude"];
+    _longitude.text = data["longitude"];
+    _selectedBarangay = data["brgy_id"].toString();
+
+    setState(() {});
   }
 
   void _loadBrgy() async {
@@ -985,12 +1052,54 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
         _barangays = result["data"];
       });
     }
-    print("_barangays $_barangays");
   }
 
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
       try {
+        if (widget.isUpdate) {
+          final establishment = {
+            'business_name': _businessNameController.text,
+            'owner_name': _ownerNameController.text,
+            'representative_name': _representativeController.text,
+            'contact_number': _contactNumberController.text,
+            'brgy_id': _selectedBarangay,
+            'street_address': _streetAddressController.text,
+            'town': _townController.text,
+            'occupancy_type': _occupancyTypeController.text,
+            'floor_area': double.tryParse(_floorAreaController.text),
+            'no_of_storeys': int.tryParse(_storeysController.text),
+            'latitude': _latitude.text,
+            'longitude': _longitude.text,
+            'establishment_status': _selectedStatus,
+            'is_active': "Y",
+            'fsic_expiry_date': widget.isUpdate
+                ? fsicExpDate!.add(Duration(days: 365)).toString().split(" ")[0]
+                : null,
+            'inspection_status': 'PASSED',
+          };
+
+          final result = await ApiPhp(
+            tableName: "establishments",
+            parameters: establishment,
+            whereClause: {
+              "establishment_id": widget.estlishmentData!["establishment_id"],
+            },
+          ).update();
+
+          if (result["success"]) {
+            widget.onSave();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Successfully ${widget.isUpdate ? "updated" : "added"}',
+                ),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+          return;
+        }
         final establishment = {
           'business_name': _businessNameController.text,
           'owner_name': _ownerNameController.text,
@@ -1002,7 +1111,8 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
           'occupancy_type': _occupancyTypeController.text,
           'floor_area': double.tryParse(_floorAreaController.text),
           'no_of_storeys': int.tryParse(_storeysController.text),
-
+          'latitude': _latitude.text,
+          'longitude': _longitude.text,
           'establishment_status': _selectedStatus,
           'fsic_file_path': "",
           'cro_file_path': "",
@@ -1019,7 +1129,7 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
           widget.onSave();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('User " added successfully!'),
+              content: Text('Establishment added successfully!'),
               backgroundColor: Colors.green,
             ),
           );
@@ -1046,7 +1156,7 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
       _selectedBarangay = null;
       _selectedStatus = 'NEW';
 
-      _isActive = true;
+      isActive = true;
       _townController.text = 'Hinigaran';
     });
   }
@@ -1169,6 +1279,7 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
                           SizedBox(
                             width: 300,
                             child: _buildDropdown(
+                              isDisabled: false,
                               value: _selectedBarangay,
                               label: 'Barangay *',
                               items: _barangays.map((barangay) {
@@ -1216,8 +1327,10 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
                         children: [
                           _buildTextField(
                             controller: _occupancyTypeController,
-                            label: 'Occupancy Type',
+                            label: 'Occupancy Type *',
                             width: 300,
+                            validator: (value) =>
+                                value!.isEmpty ? 'Required' : null,
                           ),
                           _buildTextField(
                             controller: _floorAreaController,
@@ -1229,6 +1342,8 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
                                 RegExp(r'^\d+\.?\d{0,2}'),
                               ),
                             ],
+                            validator: (value) =>
+                                value!.isEmpty ? 'Required' : null,
                           ),
                           _buildTextField(
                             controller: _storeysController,
@@ -1238,11 +1353,14 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
                             inputFormatters: [
                               FilteringTextInputFormatter.digitsOnly,
                             ],
+                            validator: (value) =>
+                                value!.isEmpty ? 'Required' : null,
                           ),
                           SizedBox(
                             width: 200,
                             child: _buildDropdown(
                               value: _selectedStatus,
+                              isDisabled: true,
                               label: 'Status',
                               items: ['NEW', 'RENEWAL', 'CLOSED'].map((status) {
                                 return DropdownMenuItem(
@@ -1253,7 +1371,42 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
                               onChanged: (value) {
                                 setState(() => _selectedStatus = value);
                               },
+                              validator: (value) =>
+                                  value == null ? 'Required' : null,
                             ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 40),
+
+                      // Building Details Section
+                      _buildSectionHeader(
+                        icon: Icons.construction,
+                        title: 'Building Location',
+                        subText: "Make sure the building location is accurate",
+                      ),
+
+                      SizedBox(height: 20),
+
+                      Wrap(
+                        spacing: 20,
+                        runSpacing: 20,
+                        children: [
+                          _buildTextField(
+                            controller: _latitude,
+                            label: 'Latitude',
+                            width: 200,
+
+                            validator: (value) =>
+                                value!.isEmpty ? 'Required' : null,
+                          ),
+                          _buildTextField(
+                            controller: _longitude,
+                            label: 'Longitude',
+                            width: 200,
+                            keyboardType: TextInputType.number,
+                            validator: (value) =>
+                                value!.isEmpty ? 'Required' : null,
                           ),
                         ],
                       ),
@@ -1271,36 +1424,39 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            OutlinedButton(
-                              onPressed: _resetForm,
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.grey[700],
-                                side: BorderSide(color: Colors.grey[400]!),
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 32,
-                                  vertical: 12,
+                            if (!widget.isUpdate)
+                              OutlinedButton(
+                                onPressed: _resetForm,
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.grey[700],
+                                  side: BorderSide(color: Colors.grey[400]!),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 32,
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
                                 ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
+                                child: Text('Reset Form'),
                               ),
-                              child: Text('Reset Form'),
-                            ),
                             SizedBox(width: 16),
                             ElevatedButton(
                               onPressed: _submitForm,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue[700],
+                                backgroundColor: Colors.red[700],
                                 foregroundColor: Colors.white,
                                 padding: EdgeInsets.symmetric(
                                   horizontal: 32,
-                                  vertical: 12,
+                                  vertical: 25,
                                 ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
-                              child: Text('Save Establishment'),
+                              child: Text(
+                                '${widget.isUpdate ? "Update" : "Save"} Establishment',
+                              ),
                             ),
                           ],
                         ),
@@ -1316,7 +1472,11 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
     );
   }
 
-  Widget _buildSectionHeader({required IconData icon, required String title}) {
+  Widget _buildSectionHeader({
+    required IconData icon,
+    required String title,
+    String? subText,
+  }) {
     return Container(
       padding: EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -1333,13 +1493,25 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
             child: Icon(icon, size: 24, color: Colors.blue[700]),
           ),
           SizedBox(width: 12),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: Colors.grey[900],
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey[900],
+                ),
+              ),
+              if (subText != null) ...[
+                SizedBox(height: 4),
+                Text(
+                  subText,
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+              ],
+            ],
           ),
         ],
       ),
@@ -1400,9 +1572,10 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
     required List<DropdownMenuItem<String>> items,
     required void Function(String?) onChanged,
     String? Function(String?)? validator,
+    bool? isDisabled = false,
   }) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       decoration: InputDecoration(
         labelText: label,
         border: OutlineInputBorder(
@@ -1422,7 +1595,8 @@ class _EstablishmentFormState extends State<EstablishmentForm> {
         contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
       items: items,
-      onChanged: onChanged,
+
+      onChanged: isDisabled! ? null : onChanged,
       validator: validator,
       dropdownColor: Colors.white,
       icon: Icon(Icons.arrow_drop_down, color: Colors.grey[600]),

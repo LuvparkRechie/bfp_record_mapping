@@ -692,14 +692,26 @@ class _LoginScreenState extends State<LoginScreen> {
           );
           return;
         }
-
+        if (kIsWeb && result["data"]["user"]["role"] == "Inspector") {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: Not supported'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+        if (!kIsWeb && result["data"]["user"]["role"] == "Inspector") {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => InspAssignedTask()),
+          );
+          return;
+        }
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) =>
-                (!kIsWeb && result["data"]["user"]["role"] == "Inspector")
-                ? InspAssignedTask()
-                : WebLandingPage(),
+            builder: (context) => WebLandingPage(userData: result["data"]),
           ),
         );
       } else {
