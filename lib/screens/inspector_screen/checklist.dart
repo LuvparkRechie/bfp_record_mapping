@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:bfp_record_mapping/api/api_key.dart';
 import 'package:bfp_record_mapping/customs/loading_dialog.dart';
 import 'package:bfp_record_mapping/database/checklist_db.dart';
 import 'package:bfp_record_mapping/database/sqlite_database.dart';
@@ -2259,42 +2258,4 @@ class _ChecklistPageState extends State<ChecklistPage> {
 
   //   // _callSubmitApi(reportData);
   // }
-
-  Future<Map<String, dynamic>> _callSubmitApi(
-    Map<String, dynamic> reportData,
-  ) async {
-    try {
-      if (reportData['answers'] is Map) {
-        reportData['answers'] = jsonEncode(reportData['answers']);
-      }
-
-      final response = await ApiPhp(
-        tableName: "inspection_reports",
-        parameters: reportData,
-      ).insert(subUrl: 'http://192.168.11.150/mapping/save_checklist.php');
-
-      if (response["success"]) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✓ Inspection submitted successfully'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-
-        Navigator.pop(context, true);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✓ nope'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-      return response;
-    } catch (e) {
-      rethrow;
-    }
-  }
 }

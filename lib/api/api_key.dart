@@ -3,11 +3,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:bfp_record_mapping/api/path_variables.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
-import 'package:image_picker/image_picker.dart';
 
 Future<dynamic> getAddressFromLatLngOSM(double lat, double lon) async {
   final url =
@@ -37,7 +37,7 @@ Future<dynamic> getAddressFromLatLngOSM(double lat, double lon) async {
 }
 
 class ApiPhp {
-  final String baseUrl = 'http://192.168.11.150/mapping/api.php'; //my wifi
+  final String baseUrl = '${ApiKeys.pathVariable}${ApiKeys.dbConn}'; //my wifi
   final String tableName;
   final Map<String, dynamic>? parameters;
   final Map<String, dynamic>? whereClause;
@@ -192,47 +192,6 @@ class ApiPhp {
     );
   }
 
-  // In your ApiPhp class, add:
-  Future<Map<String, dynamic>> finishReport(Map<String, dynamic> data) async {
-    return await _handleRequest(
-      http.post(
-        Uri.parse("http://192.168.11.150/bfp_finish_reports.php"),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(data),
-      ),
-    );
-  }
-
-  Future<Map<String, dynamic>> insertAdminAlert() async {
-    String alertUrl = "http://192.168.11.150/admin_alert.php";
-    return await _handleRequest(
-      http.post(
-        Uri.parse(alertUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'table': tableName,
-          'operation': 'insert',
-          'data': parameters ?? {},
-        }),
-      ),
-    );
-  }
-
-  Future<Map<String, dynamic>> insertMood() async {
-    String alertUrl = "http://192.168.11.150/mood_entry.php";
-    return await _handleRequest(
-      http.post(
-        Uri.parse(alertUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'table': tableName,
-          'operation': 'insert',
-          'data': parameters ?? {},
-        }),
-      ),
-    );
-  }
-
   // -------------------------------
   // UPDATE operation
   // -------------------------------
@@ -326,53 +285,15 @@ class ApiPhp {
     );
   }
 
-  Future<Map<String, dynamic>> submitReportWithImage({
-    required XFile image,
-  }) async {
-    final uri = Uri.parse("http://192.168.11.150/bfp_incident_reports.php");
-
-    var request = http.MultipartRequest('POST', uri);
-
-    // Add the image
-    request.files.add(await http.MultipartFile.fromPath('image', image.path));
-
-    // Add report fields as text
-    parameters!.forEach((key, value) {
-      request.fields[key] = value.toString();
-    });
-
-    try {
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-
-      if (response.statusCode == 200) {
-        final body = json.decode(response.body);
-        return {
-          "success": body["success"],
-          "message": body["message"] ?? "Report submitted successfully",
-          "data": body["data"],
-        };
-      } else {
-        return {
-          "success": false,
-          "message": "Submission failed with status: ${response.statusCode}",
-        };
-      }
-    } catch (e) {
-      return {"success": false, "message": "Submission error: ${e.toString()}"};
-    }
-  }
-
   static Future<Map<String, dynamic>> uploadEstablishmentDocument({
     required dynamic file,
     required int establishmentId,
     required String establishmentName,
     required String documentType, // 'fsic', 'cro', 'fca'
     String? expiryDate,
-    String serverUrl = "http://192.168.11.150/mapping/upload_file.php",
   }) async {
     try {
-      final uri = Uri.parse(serverUrl);
+      final uri = Uri.parse('${ApiKeys.pathVariable}${ApiKeys.saveChkList}');
       final request = http.MultipartRequest('POST', uri);
 
       late List<int> bytes;
@@ -456,7 +377,9 @@ class ApiPhp {
   }) async {
     try {
       // Create multipart request
-      var uri = Uri.parse('http://192.168.11.150/mapping/upload_signature.php');
+      var uri = Uri.parse(
+        '${ApiKeys.pathVariable}${ApiKeys.uploadSignatureImg}',
+      );
       var request = http.MultipartRequest('POST', uri);
 
       // Add the Uint8List directly as file
@@ -504,7 +427,7 @@ class ApiPhp {
   }) async {
     try {
       // Prepare the request
-      var uri = Uri.parse('http://192.168.11.150/mapping/delete_signature.php');
+      var uri = Uri.parse('${ApiKeys.pathVariable}${ApiKeys.delSignatureImg}');
 
       // Prepare the data
       Map<String, dynamic> requestData = {};
@@ -579,6 +502,7 @@ class ApiPhp {
     Map<String, dynamic> joinConfig,
   ) async {
     // Merge the joinConfig with orderBy and limit
+    print("baseUrl $baseUrl");
     final mergedJoinConfig = Map<String, dynamic>.from(joinConfig);
 
     if (orderBy != null) {
@@ -630,30 +554,12 @@ class ApiPhp {
     }
   }
 
-  Future<List<String>> fetchReportImages(int reportId) async {
-    final url =
-        'http://192.168.11.150/bfp_get_img_uploads.php?report_id=$reportId';
-
-    final response = await http.get(Uri.parse(url));
-
-    if (response.statusCode == 200) {
-      final body = json.decode(response.body);
-
-      if (body['success'] == true) {
-        return (body['data'] as List)
-            .map<String>((img) => img['image_url'] as String)
-            .toList();
-      }
-    }
-    return [];
-  }
-
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
   }) async {
-    final url = Uri.parse("http://192.168.11.150/mapping/login.php");
-
+    final url = Uri.parse('${ApiKeys.pathVariable}${ApiKeys.login}');
+    print("url $url");
     try {
       // Check internet connection first
       final internetCheck = await NetworkUtils.hasInternetConnection();

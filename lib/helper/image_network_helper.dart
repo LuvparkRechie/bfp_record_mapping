@@ -1,15 +1,14 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:bfp_record_mapping/api/path_variables.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 class ImageHelper {
-  static String baseUrl = 'http://192.168.11.150';
-
   // Load image via JSON + Base64 (most reliable for Flutter Web)
   static Future<Uint8List?> loadImageViaJson(String filename) async {
-    String url = 'http://192.168.11.150/mapping/get_img.php?file=$filename';
+    String url = '${ApiKeys.pathVariable}${ApiKeys.getImg}?file=$filename';
 
     try {
       final response = await http.get(Uri.parse(url));
@@ -118,8 +117,7 @@ class SignatureDebugger {
 
     String filename = imagePath.split('/').last;
 
-    String url =
-        'http://192.168.11.150/mapping/get_image_json.php?file=$filename';
+    String url = '${ApiKeys.pathVariable}${ApiKeys.getImgJson}?file=$filename';
 
     try {
       final response = await http.get(Uri.parse(url));

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:bfp_record_mapping/api/api_key.dart';
+import 'package:bfp_record_mapping/api/path_variables.dart';
 import 'package:bfp_record_mapping/customs/loading_dialog.dart';
 import 'package:bfp_record_mapping/screens/app_theme.dart';
 import 'package:bfp_record_mapping/screens/web_screen/approved_reports.dart';
@@ -32,7 +33,7 @@ class _BrgyScreenState extends State<BrgyScreen> {
     final result = await ApiPhp(
       tableName: "",
       parameters: {'filter': 'approved'},
-    ).select(subURl: 'http://192.168.11.150/mapping/brgy_reports.php');
+    ).select(subURl: '${ApiKeys.pathVariable}${ApiKeys.brgyReports}');
 
     listOfBrgy = result["data"] ?? [];
     filteredBrgy = List.from(listOfBrgy);
@@ -987,7 +988,7 @@ class YearEstablishmentsScreen extends StatelessWidget {
       );
 
       final String url =
-          "http://192.168.11.150/mapping/download_file.php?file=$filePath";
+          '${ApiKeys.pathVariable}${ApiKeys.downloadFile}?file=$filePath';
 
       final Uri uri = Uri.parse(url);
 
@@ -1146,7 +1147,7 @@ class YearEstablishmentsScreen extends StatelessWidget {
     try {
       LoadingDialog.show(context: context, message: "Loading reports...");
 
-      final url = Uri.parse('http://192.168.11.150/mapping/report_details.php');
+      final url = Uri.parse('${ApiKeys.pathVariable}${ApiKeys.reportDetails}');
 
       final response = await http.post(
         url,

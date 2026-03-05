@@ -1,5 +1,6 @@
 // establishment_screen.dart - Updated with complete form screen
 import 'package:bfp_record_mapping/api/api_key.dart';
+import 'package:bfp_record_mapping/api/path_variables.dart';
 import 'package:bfp_record_mapping/customs/loading_dialog.dart';
 import 'package:bfp_record_mapping/functions.dart';
 import 'package:bfp_record_mapping/screens/app_theme.dart';
@@ -33,7 +34,7 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
   }
 
   void loadUserData() async {
-    userData = await StoreCredentials.getUserData();
+    userData = await StoreCredentials().getUserData();
 
     setState(() {});
   }
@@ -245,7 +246,7 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
                               parameters: inspectionData,
                             ).insert(
                               subUrl:
-                                  'http://192.168.11.150/mapping/assign_establishment.php',
+                                  '${ApiKeys.pathVariable}${ApiKeys.assignEstablishment}',
                             );
 
                         ScaffoldMessenger.of(context).showSnackBar(

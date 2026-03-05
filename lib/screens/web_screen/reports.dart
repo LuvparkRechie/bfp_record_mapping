@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:bfp_record_mapping/api/api_key.dart';
+import 'package:bfp_record_mapping/api/path_variables.dart';
 import 'package:bfp_record_mapping/screens/app_theme.dart';
 import 'package:bfp_record_mapping/screens/web_screen/report_details.dart';
 import 'package:flutter/material.dart';
@@ -39,7 +40,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     try {
       final response = await ApiPhp(
         tableName: "inspection_reports",
-      ).select(subURl: 'http://192.168.11.150/mapping/reports_list.php');
+      ).select(subURl: '${ApiKeys.pathVariable}${ApiKeys.reportsList}');
 
       if (response["success"]) {
         List data = response["data"];
@@ -61,7 +62,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Future<void> _fetchReportDetails(int reportId, reportsData) async {
     try {
-      final url = Uri.parse('http://192.168.11.150/mapping/report_details.php');
+      final url = Uri.parse('${ApiKeys.pathVariable}${ApiKeys.reportDetails}');
 
       final response = await http.post(
         url,
@@ -95,7 +96,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
         throw Exception('HTTP ${response.statusCode}');
       }
     } catch (e) {
-      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),

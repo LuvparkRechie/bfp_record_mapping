@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:bfp_record_mapping/api/api_key.dart';
+import 'package:bfp_record_mapping/api/path_variables.dart';
 import 'package:bfp_record_mapping/database/checklist_db.dart';
 import 'package:bfp_record_mapping/screens/app_theme.dart';
 import 'package:bfp_record_mapping/screens/login_screen.dart';
@@ -39,7 +40,7 @@ class _SplashScreenState extends State<SplashScreen> {
     try {
       final response = await ApiPhp(
         tableName: "checklist_templates",
-      ).select(subURl: "http://192.168.11.150/mapping/checklist_template.php");
+      ).select(subURl: '${ApiKeys.pathVariable}${ApiKeys.chkTmplList}');
 
       final bool success =
           response["success"] == true || response["status"] == "success";

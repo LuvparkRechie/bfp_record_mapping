@@ -1,4 +1,5 @@
 import 'package:bfp_record_mapping/api/api_key.dart';
+import 'package:bfp_record_mapping/api/path_variables.dart';
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -570,7 +571,7 @@ class _ApprovedReportDetailsScreenState
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
                                 child: Image.network(
-                                  "http://192.168.11.150/mapping/get_img.php?file=${reportData["owner_signature_path"]}",
+                                  "${ApiKeys.pathVariable}${ApiKeys.getImg}?file=${reportData["owner_signature_path"]}",
                                   fit: BoxFit.contain,
                                   loadingBuilder:
                                       (context, child, loadingProgress) {
@@ -619,7 +620,7 @@ class _ApprovedReportDetailsScreenState
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
                                 child: Image.network(
-                                  "http://192.168.11.150/mapping/get_img.php?file=${reportData["inspector_signature"]}",
+                                  "${ApiKeys.pathVariable}${ApiKeys.getImg}?file=${reportData["inspector_signature"]}",
                                   fit: BoxFit.contain,
                                   loadingBuilder:
                                       (context, child, loadingProgress) {
@@ -1069,7 +1070,7 @@ class _ApprovedReportDetailsScreenState
       final response = await ApiPhp(
         tableName: "inspection_reports",
         parameters: {'report_id': reportId, 'action': status},
-      ).update(subUrl: 'http://192.168.11.150/mapping/approve_reports.php');
+      ).update(subUrl: '${ApiKeys.pathVariable}${ApiKeys.approveReports}');
 
       Navigator.pop(context);
 

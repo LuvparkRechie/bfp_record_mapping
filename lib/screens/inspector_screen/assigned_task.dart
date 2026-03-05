@@ -1,6 +1,5 @@
 import 'package:bfp_record_mapping/api/api_key.dart';
 import 'package:bfp_record_mapping/database/assigned_task_db.dart';
-import 'package:bfp_record_mapping/database/sqlite_database.dart';
 import 'package:bfp_record_mapping/functions.dart';
 import 'package:bfp_record_mapping/screens/inspector_screen/checklist.dart';
 import 'package:bfp_record_mapping/shared_pref.dart';
@@ -57,13 +56,11 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
   }
 
   void getAssignedSTask() async {
-    await dbHelper.deleteAllTasks();
-    await DatabaseHelper.instance.deleteAllSyncedReports();
-    await DatabaseHelper.instance.deleteAllSignatures();
-    userData = await StoreCredentials.getUserData();
+    userData = (await StoreCredentials().getUserData())!;
     setState(() {
       isLoading = true;
     });
+
     try {
       final api = ApiPhp(tableName: 'assigned_inspections');
 
@@ -79,7 +76,7 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
       };
 
       final response = await api.selectWithJoin(joinConfig);
-
+      print("response $response");
       List responseData = response['data'] == null ? [] : response["data"];
 
       if (response['success']) {

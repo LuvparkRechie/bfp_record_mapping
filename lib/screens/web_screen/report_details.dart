@@ -1,4 +1,5 @@
 import 'package:bfp_record_mapping/api/api_key.dart';
+import 'package:bfp_record_mapping/api/path_variables.dart';
 import 'package:bfp_record_mapping/helper/image_network_helper.dart';
 import 'package:flutter/material.dart';
 
@@ -151,7 +152,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
                                   child: Image.network(
-                                    "http://192.168.11.150/mapping/get_img.php?file=${reportData["owner_signature_path"]}",
+                                    "${ApiKeys.pathVariable}${ApiKeys.getImg}?file=${reportData["owner_signature_path"]}",
                                     fit: BoxFit.contain,
                                     loadingBuilder:
                                         (context, child, loadingProgress) {
@@ -201,7 +202,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
                                   child: Image.network(
-                                    "http://192.168.11.150/mapping/get_img.php?file=${reportData["inspector_signature"]}",
+                                    "${ApiKeys.pathVariable}${ApiKeys.getImg}?file=${reportData["inspector_signature"]}",
                                     fit: BoxFit.contain,
                                     loadingBuilder:
                                         (context, child, loadingProgress) {
@@ -656,7 +657,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
       final response = await ApiPhp(
         tableName: "inspection_reports",
         parameters: {'report_id': reportId, 'action': status},
-      ).update(subUrl: 'http://192.168.11.150/mapping/approve_reports.php');
+      ).update(subUrl: '${ApiKeys.pathVariable}${ApiKeys.approveReports}');
 
       // Close loading dialog
       Navigator.pop(context);
