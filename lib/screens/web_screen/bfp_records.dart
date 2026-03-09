@@ -1123,7 +1123,7 @@ class YearEstablishmentsScreen extends StatelessWidget {
     String? expiryDate,
   }) async {
     final result = await ApiPhp.uploadEstablishmentDocument(
-      file: file, // Pass the FilePickerResult directly on web
+      file: file,
       establishmentId: estId!,
       establishmentName: establishmentName.toString().replaceAll(" ", "_"),
       documentType: documentType,

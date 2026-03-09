@@ -3,12 +3,11 @@ import 'package:bfp_record_mapping/screens/web_screen/bfp_records.dart';
 import 'package:bfp_record_mapping/screens/web_screen/establishments.dart';
 import 'package:bfp_record_mapping/screens/web_screen/reports.dart';
 import 'package:bfp_record_mapping/screens/web_screen/users.dart';
+import 'package:bfp_record_mapping/shared_pref.dart';
 import 'package:flutter/material.dart';
 
 class WebLandingPage extends StatefulWidget {
-  final Map<String, dynamic> userData; // Add user data parameter
-
-  const WebLandingPage({Key? key, required this.userData}) : super(key: key);
+  const WebLandingPage({Key? key}) : super(key: key);
 
   @override
   _WebLandingPageState createState() => _WebLandingPageState();
@@ -17,6 +16,7 @@ class WebLandingPage extends StatefulWidget {
 class _WebLandingPageState extends State<WebLandingPage> {
   bool sidebarOpen = true; // Start open for web
   String selectedMenu = 'reports';
+  Map<String, dynamic> userData = {};
 
   final List<Map<String, dynamic>> menuItems = [
     {
@@ -50,6 +50,16 @@ class _WebLandingPageState extends State<WebLandingPage> {
       'widget': const BrgyScreen(),
     },
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    getUserData();
+  }
+
+  Future<void> getUserData() async {
+    userData = await StoreCredentials().getUserData();
+  }
 
   Widget get currentScreen {
     final item = menuItems.firstWhere(
@@ -195,8 +205,7 @@ class _WebLandingPageState extends State<WebLandingPage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      widget.userData['full_name'] ??
-                                          'Admin User',
+                                      userData['full_name'] ?? 'Admin User',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 16,
@@ -212,17 +221,15 @@ class _WebLandingPageState extends State<WebLandingPage> {
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color:
-                                            widget.userData['role'] == 'Admin'
+                                        color: userData['role'] == 'Admin'
                                             ? Colors.purple.withOpacity(0.2)
                                             : Colors.blue.withOpacity(0.2),
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Text(
-                                        widget.userData['role'] ?? 'Admin',
+                                        userData['role'] ?? 'Admin',
                                         style: TextStyle(
-                                          color:
-                                              widget.userData['role'] == 'Admin'
+                                          color: userData['role'] == 'Admin'
                                               ? Colors.purple.shade200
                                               : Colors.blue.shade200,
                                           fontSize: 11,
@@ -513,12 +520,14 @@ class _WebLandingPageState extends State<WebLandingPage> {
 
   // Logout Confirmation Dialog
   void _showLogoutDialog() {
+    print("afd ${userData['full_name']}");
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Logout'),
         content: Text(
-          'Are you sure you want to logout, ${widget.userData['full_name']}?',
+          'Are you sure you want to logout, ${userData['full_name']}?',
         ),
         actions: [
           TextButton(

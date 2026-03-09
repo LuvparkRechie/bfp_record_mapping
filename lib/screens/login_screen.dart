@@ -66,9 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => WebLandingPage(userData: result["data"]),
-          ),
+          MaterialPageRoute(builder: (context) => WebLandingPage()),
         );
       } else {
         _showErrorDialog(result["message"]);

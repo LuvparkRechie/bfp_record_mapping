@@ -13,11 +13,11 @@ class ApiKeys {
   static final String uploadSignatureImg = dotenv.env["UPLOAD_SIGNATURE_IMG"]!;
   static final String delSignatureImg = dotenv.env["DELETE_SIGNATURE"]!;
   static final String getImg = dotenv.env["GET_IMG"]!;
-  static final String getImgJson = dotenv.env["GET_IMG_JSON"]!;
   static final String downloadFile = dotenv.env["DOWNLOAD_FILE"]!;
   static final String approveReports = dotenv.env["APPROVE_REPORTS"]!;
   static final String brgyReports = dotenv.env["BRGY_REPORTS"]!;
   static final String reportDetails = dotenv.env["REPORT_DETAILS"]!;
   static final String assignEstablishment = dotenv.env["ASSIGN_ESTABLISHMENT"]!;
   static final String reportsList = dotenv.env["REPORTS_LIST"]!;
+  static final String generateFsic = dotenv.env["GENERATE_FSIC"]!;
 }

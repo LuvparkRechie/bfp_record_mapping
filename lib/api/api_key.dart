@@ -177,6 +177,10 @@ class ApiPhp {
   // INSERT operation
   // -------------------------------
   Future<Map<String, dynamic>> insert({subUrl, jsonParam}) async {
+    print("url ${subUrl ?? baseUrl}");
+    print(
+      "param ${jsonParam ?? json.encode({'table': tableName, 'operation': 'insert', 'data': parameters ?? {}})}",
+    );
     return await _handleRequest(
       http.post(
         Uri.parse(subUrl ?? baseUrl),

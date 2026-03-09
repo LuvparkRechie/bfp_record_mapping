@@ -71,197 +71,213 @@ class _UsersScreenState extends State<UsersScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
-                    Scrollbar(
-                      controller: _scrollController,
-                      child: SingleChildScrollView(
+                    Expanded(
+                      child: Scrollbar(
                         controller: _scrollController,
-                        scrollDirection: Axis.horizontal,
                         child: SingleChildScrollView(
-                          scrollDirection: Axis.vertical,
-                          child: DataTable(
-                            headingRowColor: WidgetStateProperty.resolveWith(
-                              (states) => Colors.grey[50]!,
-                            ),
-                            headingRowHeight: 56,
-                            dataRowHeight: 64,
-                            horizontalMargin: 24,
-                            columnSpacing: 32,
-                            border: TableBorder(
-                              horizontalInside: BorderSide(
-                                color: Colors.grey[100]!,
-                                width: 1,
+                          controller: _scrollController,
+                          scrollDirection: Axis.horizontal,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.vertical,
+                            child: DataTable(
+                              headingRowColor: WidgetStateProperty.resolveWith(
+                                (states) => Colors.grey[50]!,
                               ),
-                              bottom: BorderSide(color: Colors.grey[200]!),
-                            ),
-                            headingTextStyle: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[700],
-                              fontSize: 13,
-                            ),
-                            columns: const [
-                              DataColumn(label: Text('ID'), numeric: true),
-                              DataColumn(
-                                label: Text('FULL NAME'),
-                                tooltip: 'User full name',
+                              headingRowHeight: 56,
+                              dataRowHeight: 64,
+                              horizontalMargin: 24,
+                              columnSpacing: 32,
+                              border: TableBorder(
+                                horizontalInside: BorderSide(
+                                  color: Colors.grey[100]!,
+                                  width: 1,
+                                ),
+                                bottom: BorderSide(color: Colors.grey[200]!),
                               ),
-                              DataColumn(
-                                label: Text('EMAIL'),
-                                tooltip: 'Email address',
+                              headingTextStyle: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[700],
+                                fontSize: 13,
                               ),
-                              DataColumn(
-                                label: Text('MOBILE NO'),
-                                tooltip: 'Mobile number',
-                              ),
-                              DataColumn(
-                                label: Text('ROLE'),
-                                tooltip: 'User role',
-                              ),
-                              DataColumn(
-                                label: Text('STATUS'),
-                                tooltip: 'Active/Inactive status',
-                              ),
-                              DataColumn(
-                                label: Text('CREATED'),
-                                tooltip: 'Creation date',
-                              ),
-                              DataColumn(
-                                label: Text('ACTIONS'),
-                                tooltip: 'User actions',
-                              ),
-                            ],
-                            rows: filteredUsers.map((user) {
-                              return DataRow(
-                                cells: [
-                                  DataCell(
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[50],
-                                        borderRadius: BorderRadius.circular(6),
+                              columns: const [
+                                DataColumn(label: Text('ID'), numeric: true),
+                                DataColumn(
+                                  label: Text('FULL NAME'),
+                                  tooltip: 'User full name',
+                                ),
+                                DataColumn(
+                                  label: Text('EMAIL'),
+                                  tooltip: 'Email address',
+                                ),
+                                DataColumn(
+                                  label: Text('MOBILE NO'),
+                                  tooltip: 'Mobile number',
+                                ),
+                                DataColumn(
+                                  label: Text('ROLE'),
+                                  tooltip: 'User role',
+                                ),
+                                DataColumn(
+                                  label: Text('STATUS'),
+                                  tooltip: 'Active/Inactive status',
+                                ),
+                                DataColumn(
+                                  label: Text('CREATED'),
+                                  tooltip: 'Creation date',
+                                ),
+                                DataColumn(
+                                  label: Text('ACTIONS'),
+                                  tooltip: 'User actions',
+                                ),
+                              ],
+                              rows: filteredUsers.map((user) {
+                                return DataRow(
+                                  cells: [
+                                    DataCell(
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey[50],
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          '#${user['id'].toString().padLeft(3, '0')}',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.black,
+                                          ),
+                                        ),
                                       ),
-                                      child: Text(
-                                        '#${user['id'].toString().padLeft(3, '0')}',
+                                    ),
+                                    DataCell(
+                                      SizedBox(
+                                        width: 180,
+                                        child: Text(
+                                          user['full_name'],
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.grey[900],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      SizedBox(
+                                        width: 200,
+                                        child: Text(
+                                          user['email'],
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.black,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Text(
+                                        "${user['mobile_no']}",
                                         style: TextStyle(
                                           fontWeight: FontWeight.w600,
                                           color: Colors.black,
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  DataCell(
-                                    SizedBox(
-                                      width: 180,
-                                      child: Text(
-                                        user['full_name'],
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.grey[900],
+                                    DataCell(
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
+                                        ),
+                                        child: Text(
+                                          "${user['role']}",
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.black,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  DataCell(
-                                    SizedBox(
-                                      width: 200,
-                                      child: Text(
-                                        user['email'],
-                                        overflow: TextOverflow.ellipsis,
+                                    // FIXED STATUS CELL
+                                    DataCell(
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: user['is_active'] == 'Y'
+                                              ? Colors.green[50]
+                                              : Colors.red[50],
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          user['is_active'] == 'Y'
+                                              ? 'Active'
+                                              : 'Inactive',
+                                          style: TextStyle(
+                                            color: user['is_active'] == 'Y'
+                                                ? Colors.green[800]
+                                                : Colors.red[800],
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Text(
+                                        user['created_at'],
                                         style: TextStyle(
                                           fontWeight: FontWeight.w600,
                                           color: Colors.black,
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  DataCell(
-                                    Text(
-                                      "${user['mobile_no']}",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 6,
-                                      ),
-                                      // decoration: BoxDecoration(
-                                      //   color: _getRoleColor(user['role']),
-                                      //   borderRadius: BorderRadius.circular(20),
-                                      // ),
-                                      child: Text(
-                                        "${user['role']}",
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.black,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 6,
-                                      ),
-
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [],
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Text(
-                                      user['created_at'],
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Row(
-                                      children: [
-                                        IconButton(
-                                          onPressed: () =>
-                                              _viewUserDetails(user),
-                                          icon: Icon(
-                                            Icons.visibility_outlined,
-                                            size: 20,
-                                            color: Colors.blue[600],
+                                    DataCell(
+                                      Row(
+                                        children: [
+                                          IconButton(
+                                            onPressed: () =>
+                                                _viewUserDetails(user),
+                                            icon: Icon(
+                                              Icons.visibility_outlined,
+                                              size: 20,
+                                              color: Colors.blue[600],
+                                            ),
+                                            tooltip: 'View Details',
                                           ),
-                                          tooltip: 'View Details',
-                                        ),
-                                        IconButton(
-                                          onPressed: () => _editUser(user),
-                                          icon: Icon(
-                                            Icons.edit_outlined,
-                                            size: 20,
-                                            color: Colors.orange[600],
+                                          IconButton(
+                                            onPressed: () => _editUser(user),
+                                            icon: Icon(
+                                              Icons.edit_outlined,
+                                              size: 20,
+                                              color: Colors.orange[600],
+                                            ),
+                                            tooltip: 'Edit User',
                                           ),
-                                          tooltip: 'Edit User',
-                                        ),
-                                        IconButton(
-                                          onPressed: () => _toggleUserStatus(
-                                            user['id'],
-                                            user["signature_path"],
+                                          IconButton(
+                                            onPressed: () => _toggleUserStatus(
+                                              user['id'],
+                                              user["signature_path"],
+                                            ),
+                                            icon: Icon(
+                                              Icons.delete,
+                                              size: 28,
+                                              color: Colors.red,
+                                            ),
                                           ),
-                                          icon: Icon(
-                                            Icons.delete,
-                                            size: 28,
-                                            color: Colors.red,
-                                          ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              );
-                            }).toList(),
+                                  ],
+                                );
+                              }).toList(),
+                            ),
                           ),
                         ),
                       ),

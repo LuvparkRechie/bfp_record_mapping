@@ -11,6 +11,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 @pragma('vm:entry-point')
 Future<void> backgroundFunc() async {
+  print("ataya");
   Timer.periodic((Duration(minutes: 5)), (d) async {
     revertSchedData();
   });
@@ -37,7 +38,8 @@ void storeLocalData() async {
   final dbHelper = DatabaseHelper.instance;
   final reportData = await dbHelper.getAllInspectionReports();
   final signatureData = await dbHelper.getAllSignature();
-
+  print("reportData $reportData");
+  print("signatureData $signatureData");
   try {
     if (signatureData.isNotEmpty) {
       final uploadResult = await ApiPhp.uploadPngFile(
@@ -50,14 +52,17 @@ void storeLocalData() async {
       }
       await dbHelper.deleteSignature(signatureData[0]["report_no"].toString());
     }
+    print("response inspection ${reportData.isNotEmpty}");
     if (reportData.isNotEmpty) {
       final response = await ApiPhp(
         tableName: "inspection_reports",
         parameters: reportData[0],
       ).insert(subUrl: '${ApiKeys.pathVariable}${ApiKeys.saveChkList}');
-
+      print("response inspection $response");
       if (response["success"]) {
-        await dbHelper.deleteInspectionReport(reportData[0]["id"]);
+        await dbHelper.deleteInspectionReport(
+          reportData[0]["report_no"].toString(),
+        );
         await Future.delayed(Duration(seconds: 3));
 
         storeLocalData();

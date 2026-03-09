@@ -44,6 +44,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
       if (response["success"]) {
         List data = response["data"];
+
         setState(() {
           reportsData = data.isEmpty
               ? []

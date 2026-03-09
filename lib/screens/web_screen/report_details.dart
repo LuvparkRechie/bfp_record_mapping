@@ -1,6 +1,5 @@
 import 'package:bfp_record_mapping/api/api_key.dart';
 import 'package:bfp_record_mapping/api/path_variables.dart';
-import 'package:bfp_record_mapping/helper/image_network_helper.dart';
 import 'package:flutter/material.dart';
 
 class ReportDetailsScreen extends StatefulWidget {
@@ -25,9 +24,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Debug the signature
-      SignatureDebugger.debugSignature(
-        widget.reportsData['inspector_signature'],
-      );
     });
   }
 
@@ -73,6 +69,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
               child: Text('No data', style: TextStyle(color: Colors.grey[600])),
             )
           : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -580,13 +577,14 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
   // Helper method to build consistent action buttons
   Widget _buildActionButton({
     required String label,
-    required IconData icon,
+    IconData? icon,
     required Color color,
     required VoidCallback? onPressed,
     required bool disabled,
+    double? height,
   }) {
     return Container(
-      height: 56, // Taller buttons
+      height: height ?? 56, // Taller buttons
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         boxShadow: disabled
@@ -616,12 +614,15 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  icon,
-                  size: 22, // Bigger icon
-                  color: disabled ? Colors.grey[500] : color,
-                ),
-                const SizedBox(width: 10),
+                if (icon != null) ...[
+                  Icon(
+                    icon,
+                    size: 22, // Bigger icon
+                    color: disabled ? Colors.grey[500] : color,
+                  ),
+                  const SizedBox(width: 10),
+                ],
+
                 Text(
                   label,
                   style: TextStyle(
@@ -671,12 +672,9 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
       );
 
       if (response["success"] == true) {
-        // Show success message
-
-        // Refresh the reports list
         widget.onStatusUpdated();
 
-        // Close the details screen and go back
+        // ignore: use_build_context_synchronously
         Navigator.pop(context);
       } else {
         throw Exception(response["message"] ?? 'Failed to approve');
