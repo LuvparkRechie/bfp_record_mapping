@@ -44,41 +44,39 @@ class AssignedTaskDatabase {
 
   // ==================== CRUD OPERATIONS ====================
 
-  // Insert a single task
   Future<void> insertTask(Map<String, dynamic> taskData) async {
     final db = await instance.database;
 
-    // Add synced flag (1 since it came from API)
-    taskData['synced'] = 1;
+    final assignedId = taskData['assigned_id'];
 
-    await db.insert(
-      'assigned_tasks',
-      taskData,
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
-  }
+    // Check if task already exists
+    final existingTask = await getTaskById(assignedId);
 
-  // Insert multiple tasks (for bulk sync)
-  Future<void> insertTasks(List<Map<String, dynamic>> tasksData) async {
-    final db = await instance.database;
-    final batch = db.batch();
-
-    for (var task in tasksData) {
-      task['synced'] = 1;
-      batch.insert(
-        'assigned_tasks',
-        task,
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+    if (existingTask != null && existingTask.isNotEmpty) {
+      // Already exists → ignore
+      print("Task already exists. Skipping insert.");
+      return;
     }
 
-    await batch.commit(noResult: true);
+    // Add synced flag
+    taskData['synced'] = 1;
+
+    await db.insert('assigned_tasks', taskData);
   }
 
   // Get all tasks
   Future<List<Map<String, dynamic>>> getAllTasks() async {
     final db = await instance.database;
-    return await db.query('assigned_tasks', orderBy: 'schedule_date DESC');
+    return await db.rawQuery('''
+    SELECT *
+    FROM assigned_tasks
+    WHERE id IN (
+      SELECT MIN(id)
+      FROM assigned_tasks
+      GROUP BY establishment_id
+    )
+    ORDER BY schedule_date DESC
+  ''');
   }
 
   // Get task by assigned_id
@@ -87,6 +85,17 @@ class AssignedTaskDatabase {
     final results = await db.query(
       'assigned_tasks',
       where: 'assigned_id = ?',
+      whereArgs: [assignedId],
+    );
+
+    return results.isNotEmpty ? results.first : {};
+  }
+
+  Future<Map<String, dynamic>?> getDuplicateTaskById(int assignedId) async {
+    final db = await instance.database;
+    final results = await db.query(
+      'assigned_tasks',
+      where: 'establishment_id = ?',
       whereArgs: [assignedId],
     );
 

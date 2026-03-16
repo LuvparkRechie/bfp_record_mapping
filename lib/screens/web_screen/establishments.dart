@@ -2749,33 +2749,69 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
                                   ),
                                 ),
                                 DataCell(
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: _getInspectionStatusColor(
-                                        establishment['inspection_status']
-                                                ?.toString()
-                                                .toLowerCase() ??
-                                            '',
-                                      ).withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      establishment['inspection_status'] ?? '',
-                                      style: TextStyle(
-                                        color: _getInspectionStatusColor(
-                                          establishment['inspection_status']
-                                                  ?.toString()
-                                                  .toLowerCase() ??
-                                              '',
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
                                         ),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
+                                        decoration: BoxDecoration(
+                                          color: _getInspectionStatusColor(
+                                            establishment['inspection_status']
+                                                    ?.toString()
+                                                    .toLowerCase() ??
+                                                '',
+                                          ).withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          establishment['inspection_status'] ??
+                                              '',
+                                          style: TextStyle(
+                                            color: _getInspectionStatusColor(
+                                              establishment['inspection_status']
+                                                      ?.toString()
+                                                      .toLowerCase() ??
+                                                  '',
+                                            ),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
                                       ),
-                                    ),
+
+                                      if (establishment['notes'] != null) ...[
+                                        SizedBox(width: 10),
+                                        IconButton(
+                                          onPressed: () {
+                                            showDialog(
+                                              context: context,
+                                              builder: (context) => AlertDialog(
+                                                title: const Text('Note'),
+                                                content: Text(
+                                                  establishment['notes'],
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(context),
+                                                    child: const Text('CLOSE'),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          },
+                                          icon: Icon(
+                                            Icons.note_alt_outlined,
+                                            size: 16,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
                                 DataCell(

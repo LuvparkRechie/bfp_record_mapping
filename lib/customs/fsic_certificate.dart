@@ -90,7 +90,7 @@ class _BondPaperWidgetState extends State<BondPaperWidget> {
           signatureBytes: imageBytes,
           fileName: fileName,
         );
-        print("result $result");
+
         if (context.mounted) {
           if (result != null && result['success'] == true) {
             setState(() {

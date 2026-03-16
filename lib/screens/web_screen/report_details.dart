@@ -517,6 +517,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
           LayoutBuilder(
             builder: (context, constraints) {
               if (constraints.maxWidth < 500) {
+                //mobile
                 return Column(
                   children: [
                     _buildActionButton(
@@ -533,7 +534,9 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
                       icon: Icons.cancel_outlined,
                       color: Colors.red,
                       onPressed: currentStatus != 'FAILED'
-                          ? () => _approveReport(reportId, context, "decline")
+                          ? () {
+                              showSimpleDeclineDialog(context, reportId);
+                            }
                           : null,
                       disabled: currentStatus == 'FAILED',
                     ),
@@ -559,7 +562,10 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
                         icon: Icons.cancel_outlined,
                         color: Colors.red,
                         onPressed: currentStatus != 'FAILED'
-                            ? () => _approveReport(reportId, context, "decline")
+                            ? () {
+                                //    _approveReport(reportId, context, "decline");
+                                showSimpleDeclineDialog(context, reportId);
+                              }
                             : null,
                         disabled: currentStatus == 'FAILED',
                       ),
@@ -639,12 +645,26 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
     );
   }
 
+  // Usage
+  void showSimpleDeclineDialog(BuildContext context, int reportId) {
+    showDialog(
+      context: context,
+      builder: (context) => EnhancedDeclineDialog(
+        reportId: reportId,
+        onDecline: (reason) {
+          _approveReport(reportId, context, "decline", note: reason);
+        },
+      ),
+    );
+  }
+
   // ✅ APPROVE REPORT - Updates both tables
   Future<void> _approveReport(
     int? reportId,
     BuildContext context,
-    String status,
-  ) async {
+    String status, {
+    note,
+  }) async {
     if (reportId == null) return;
 
     try {
@@ -657,9 +677,9 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
 
       final response = await ApiPhp(
         tableName: "inspection_reports",
-        parameters: {'report_id': reportId, 'action': status},
+        parameters: {'report_id': reportId, 'action': status, 'note': note},
       ).update(subUrl: '${ApiKeys.pathVariable}${ApiKeys.approveReports}');
-
+      print(" response inspection $response");
       // Close loading dialog
       Navigator.pop(context);
 
@@ -692,19 +712,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
     }
   }
 
-  // ✅ DECLINE REPORT
-  Future<void> _declineReport(int? reportId, BuildContext context) async {
-    if (reportId == null) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Decline functionality coming soon'),
-        backgroundColor: Colors.orange[700],
-      ),
-    );
-    widget.onStatusUpdated();
-  }
-
   String _formatDate(String? date) {
     if (date == null || date.isEmpty) return 'N/A';
     try {
@@ -726,5 +733,223 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
       default:
         return Colors.grey[700]!;
     }
+  }
+}
+
+class EnhancedDeclineDialog extends StatelessWidget {
+  final int reportId;
+  final Function(String reason) onDecline;
+
+  const EnhancedDeclineDialog({
+    Key? key,
+    required this.reportId,
+    required this.onDecline,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final TextEditingController reasonController = TextEditingController();
+    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: 8,
+      child: Container(
+        width: 400,
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header with icon and title
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.warning_rounded,
+                      color: Colors.red.shade700,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  const Expanded(
+                    child: Text(
+                      'Decline Report',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Report ID card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.description_outlined,
+                      color: Colors.grey.shade600,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Report #$reportId',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'You are about to decline this report',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Reason label
+              const Text(
+                'Reason for declining',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+
+              // Reason text field
+              TextFormField(
+                controller: reasonController,
+                maxLines: 6,
+                minLines: 6,
+                decoration: InputDecoration(
+                  hintText: 'Please provide a detailed reason...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Colors.red.shade700,
+                      width: 2,
+                    ),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Reason is required';
+                  }
+                  if (value.trim().length < 10) {
+                    return 'Please provide at least 10 characters';
+                  }
+                  return null;
+                },
+              ),
+
+              const SizedBox(height: 8),
+
+              // Character count
+              Align(
+                alignment: Alignment.centerRight,
+                child: ValueListenableBuilder(
+                  valueListenable: reasonController,
+                  builder: (context, TextEditingValue value, child) {
+                    return Text(
+                      '${value.text.length}/500',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: value.text.length > 500
+                            ? Colors.red
+                            : Colors.grey.shade600,
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Action buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        side: BorderSide(color: Colors.grey.shade400),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'CANCEL',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (formKey.currentState!.validate()) {
+                          onDecline(reasonController.text.trim());
+                          Navigator.pop(context);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: Colors.red.shade700,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 2,
+                      ),
+                      child: const Text(
+                        'DECLINE',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

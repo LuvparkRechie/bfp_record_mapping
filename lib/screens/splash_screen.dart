@@ -4,7 +4,10 @@ import 'package:bfp_record_mapping/api/api_key.dart';
 import 'package:bfp_record_mapping/api/path_variables.dart';
 import 'package:bfp_record_mapping/database/checklist_db.dart';
 import 'package:bfp_record_mapping/screens/app_theme.dart';
+import 'package:bfp_record_mapping/screens/inspector_screen/assigned_task.dart';
 import 'package:bfp_record_mapping/screens/login_screen.dart';
+import 'package:bfp_record_mapping/screens/web_screen/web_landing.dart';
+import 'package:bfp_record_mapping/shared_pref.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -29,8 +32,46 @@ class _SplashScreenState extends State<SplashScreen> {
     });
   }
 
+  void routeProcess(userData) {
+    if (!kIsWeb && userData["role"] != "Inspector") {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: Not supported for this account'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    if (kIsWeb && userData["role"] == "Inspector") {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: Not supported for this account'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    if (!kIsWeb && userData["role"] == "Inspector") {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => InspAssignedTask()),
+      );
+      return;
+    }
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => WebLandingPage()),
+    );
+  }
+
   Future<void> _initializeApp() async {
+    final userData = await StoreCredentials().getUserData();
     if (kIsWeb) {
+      print("userData $userData");
+      if (userData != null) {
+        routeProcess(userData);
+        return;
+      }
       await Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => LoginScreen()),
@@ -51,6 +92,10 @@ class _SplashScreenState extends State<SplashScreen> {
         List<dynamic> checklist = List<dynamic>.from(data);
         for (var dataRow in checklist) {
           await _chkListDbHelper.insertItem(dataRow);
+        }
+        if (userData != null) {
+          routeProcess(userData);
+          return;
         }
         await Navigator.pushReplacement(
           context,

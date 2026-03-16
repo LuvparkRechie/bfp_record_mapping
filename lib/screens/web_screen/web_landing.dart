@@ -1,4 +1,6 @@
+import 'package:bfp_record_mapping/api/api_key.dart';
 import 'package:bfp_record_mapping/screens/app_theme.dart';
+import 'package:bfp_record_mapping/screens/login_screen.dart';
 import 'package:bfp_record_mapping/screens/web_screen/bfp_records.dart';
 import 'package:bfp_record_mapping/screens/web_screen/establishments.dart';
 import 'package:bfp_record_mapping/screens/web_screen/reports.dart';
@@ -518,34 +520,77 @@ class _WebLandingPageState extends State<WebLandingPage> {
     );
   }
 
-  // Logout Confirmation Dialog
-  void _showLogoutDialog() {
-    print("afd ${userData['full_name']}");
+  Future<bool> performLogout() async {
+    final userData = await StoreCredentials().getUserData();
+    if (userData == null || userData.isEmpty) {
+      return true;
+    }
 
+    final result = await ApiPhp(
+      tableName: "users",
+      parameters: {"user_otp": "0", "device_key": ""},
+      whereClause: {"id": userData["id"]},
+    ).update();
+    print("  $userData");
+    if (result["success"]) {
+      await StoreCredentials().removeStoredData("user_data");
+      return true;
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${result["msg"]}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+  }
+
+  // Logout Confirmation Dialog
+  void _showLogoutDialog() async {
+    bool isLoadingBtn = false;
+    print("dirit");
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: Text(
-          'Are you sure you want to logout, ${userData['full_name']}?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              // Implement logout logic
-              Navigator.pop(context);
-              // Navigate to login screen
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryRed,
-            ),
-            child: const Text('Logout'),
-          ),
-        ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Logout'),
+            content: Text('Are you sure you want to logout?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              isLoadingBtn
+                  ? CircularProgressIndicator()
+                  : ElevatedButton(
+                      onPressed: () async {
+                        setState(() => isLoadingBtn = true);
+                        bool result = await performLogout();
+                        setState(() => isLoadingBtn = false);
+                        if (result) {
+                          Navigator.of(context).pop();
+                          Navigator.of(context).pushAndRemoveUntil(
+                            MaterialPageRoute(
+                              builder: (context) => const LoginScreen(),
+                            ),
+                            (route) => false,
+                          );
+                          return;
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryRed,
+                      ),
+                      child: Text(
+                        'Logout',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+            ],
+          );
+        },
       ),
     );
   }

@@ -1,6 +1,12 @@
+import 'dart:convert';
+import 'dart:math';
+
 import 'package:bfp_record_mapping/api/api_key.dart';
+import 'package:bfp_record_mapping/api/path_variables.dart';
 import 'package:bfp_record_mapping/screens/app_theme.dart';
 import 'package:bfp_record_mapping/screens/inspector_screen/assigned_task.dart';
+import 'package:bfp_record_mapping/screens/otp_scren.dart';
+import 'package:bfp_record_mapping/screens/terms_conditions.dart';
 import 'package:bfp_record_mapping/screens/web_screen/web_landing.dart';
 import 'package:bfp_record_mapping/shared_pref.dart';
 import 'package:flutter/foundation.dart';
@@ -8,6 +14,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,57 +28,140 @@ class _LoginScreenState extends State<LoginScreen> {
   final GlobalKey<FormBuilderState> _formKey = GlobalKey<FormBuilderState>();
   bool _isLoading = false;
   bool _passwordVisible = false;
+  bool _isAgree = false;
+  Future<String> _generateOTP(userData) async {
+    Random random = Random();
+    int otp = 100000 + random.nextInt(900000);
+
+    final result = await ApiPhp(tableName: "").insert(
+      subUrl: "${ApiKeys.pathVariable}${ApiKeys.otpHandler}",
+      jsonParam: json.encode({
+        "data": {
+          "user_id": userData["id"],
+          "otp": otp,
+          "phone": userData["mobile_no"].toString(),
+          "message":
+              "Your OTP code for device registration is $otp. Do not share this code with anyone.",
+          "device_key": await getUniqueDeviceId(),
+        },
+      }),
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result["message"].toString()),
+        backgroundColor: result["data"].isEmpty ? Colors.red : Colors.green,
+      ),
+    );
+
+    return result["data"].isEmpty ? "" : otp.toString();
+  }
+
+  Future<String> getUniqueDeviceId() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? storedDeviceId = prefs.getString('device_id');
+
+    if (storedDeviceId == null) {
+      var uuid = Uuid();
+      storedDeviceId = uuid.v4();
+      await prefs.setString('device_id', storedDeviceId);
+    }
+
+    return storedDeviceId;
+  }
+
+  void routeProcess(userData) {
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (!kIsWeb && userData["role"] != "Inspector") {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: Not supported for this account'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    if (kIsWeb && userData["role"] == "Inspector") {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: Not supported for this account'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    if (!kIsWeb && userData["role"] == "Inspector") {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => InspAssignedTask()),
+      );
+      return;
+    }
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => WebLandingPage()),
+    );
+  }
 
   Future<void> _handleLogin() async {
     if (_formKey.currentState?.saveAndValidate() ?? false) {
       setState(() {
         _isLoading = true;
       });
-
+      String deviceKey = await getUniqueDeviceId();
+      final userData = await StoreCredentials().getUserData();
       final formData = _formKey.currentState!.value;
       final email = formData['email'];
       final password = formData['password'];
 
-      final result = await ApiPhp.login(email: email, password: password);
-      print("result $result");
-      setState(() {
-        _isLoading = false;
-      });
-      if (result["success"]) {
-        await StoreCredentials().saveUserData(result["data"]["user"]);
+      final result = await ApiPhp(tableName: "users").insert(
+        jsonParam: json.encode({
+          'data': {'email': email, 'password': password},
+        }),
+        subUrl: "${ApiKeys.pathVariable}${ApiKeys.login}",
+      );
 
-        if (!kIsWeb && result["data"]["user"]["role"] != "Inspector") {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: Not supported'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
-        }
-        if (kIsWeb && result["data"]["user"]["role"] == "Inspector") {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: Not supported'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
-        }
-        if (!kIsWeb && result["data"]["user"]["role"] == "Inspector") {
-          Navigator.pushReplacement(
+      if (result["success"]) {
+        if ((userData == null || userData["device_key"].toString().isEmpty) ||
+            (result["data"]["user"]["device_key"].toString().isEmpty ||
+                result["data"]["user"]["device_key"].toString() !=
+                    userData["device_key"].toString())) {
+          final otpCode = await _generateOTP(result["data"]["user"]);
+          setState(() {
+            _isLoading = false;
+          });
+          if (otpCode.isEmpty) {
+            return;
+          }
+          final Map<String, dynamic> verParam = {
+            "phone": result["data"]["user"]["mobile_no"].toString(),
+            "userId": int.parse(result["data"]["user"]["id"].toString()),
+            "deviceKey": deviceKey,
+            "generatedOtp": otpCode.toString(),
+          };
+
+          final resData = await Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => InspAssignedTask()),
+            MaterialPageRoute(
+              builder: (context) => OTPVerificationScreen(verParam: verParam),
+            ),
           );
+          if (!mounted) return;
+          print("resData $resData");
+          if (resData == null) return;
+
+          await StoreCredentials().saveUserData(result["data"]["user"]);
+          routeProcess(result["data"]["user"]);
           return;
         }
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => WebLandingPage()),
-        );
-      } else {
-        _showErrorDialog(result["message"]);
+        routeProcess(result["data"]["user"]);
+        return;
       }
+      _showErrorDialog(result["message"]);
+      return;
     }
   }
 
@@ -193,11 +284,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.local_fire_department,
-                  size: 45,
-                  color: Colors.white,
-                ),
+                child: Image(image: AssetImage("assets/bfp_logo.jpg")),
               ),
             );
           },
@@ -428,7 +515,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ]),
                   textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _handleLogin(),
+                  onSubmitted: (_) => _isAgree ? _handleLogin() : null,
                 ),
 
                 const SizedBox(height: 12),
@@ -464,9 +551,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(
                   height: 55,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _handleLogin,
+                    onPressed: _isLoading || !_isAgree ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryRed,
+                      backgroundColor: !_isAgree
+                          ? AppColors.primaryRed.withValues(alpha: 0.5)
+                          : AppColors.primaryRed,
                       foregroundColor: Colors.white,
                       elevation: 3,
                       shadowColor: AppColors.primaryRed.withOpacity(0.4),
@@ -546,31 +635,68 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(height: 16),
 
         // Terms and Privacy
-        RichText(
-          text: TextSpan(
-            style: TextStyle(fontSize: 11, color: AppColors.grey, height: 1.4),
-            children: [
-              const TextSpan(text: 'By signing in, you agree to our '),
-              TextSpan(
-                text: 'Terms of Service',
-                style: TextStyle(
-                  color: AppColors.primaryRed,
-                  fontWeight: FontWeight.w600,
-                  decoration: TextDecoration.underline,
+        Row(
+          children: [
+            IconButton(
+              padding: EdgeInsets.zero,
+              onPressed: () {
+                setState(() {
+                  _isAgree = !_isAgree;
+                });
+              },
+              icon: Icon(
+                _isAgree ? Icons.check_box : Icons.check_box_outline_blank,
+              ),
+            ),
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => BFPTermsDialog(
+                        onAccept: (d) {
+                          print("dd $d");
+                          setState(() {
+                            _isAgree = true;
+                          });
+                        },
+                      ),
+                    ),
+                  );
+                },
+                child: RichText(
+                  text: TextSpan(
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.grey,
+                      height: 1.4,
+                    ),
+                    children: [
+                      const TextSpan(text: 'By signing in, you agree to our '),
+                      TextSpan(
+                        text: 'Terms of Service',
+                        style: TextStyle(
+                          color: AppColors.primaryRed,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                      const TextSpan(text: ' and '),
+                      TextSpan(
+                        text: 'Privacy Policy',
+                        style: TextStyle(
+                          color: AppColors.primaryRed,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ],
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ),
-              const TextSpan(text: ' and '),
-              TextSpan(
-                text: 'Privacy Policy',
-                style: TextStyle(
-                  color: AppColors.primaryRed,
-                  fontWeight: FontWeight.w600,
-                  decoration: TextDecoration.underline,
-                ),
-              ),
-            ],
-          ),
-          textAlign: TextAlign.center,
+            ),
+          ],
         ),
 
         const SizedBox(height: 12),

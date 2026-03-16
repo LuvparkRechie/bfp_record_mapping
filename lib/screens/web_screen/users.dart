@@ -4,6 +4,7 @@ import 'package:bfp_record_mapping/api/api_key.dart' show ApiPhp;
 import 'package:bfp_record_mapping/customs/loading_dialog.dart';
 import 'package:bfp_record_mapping/screens/app_theme.dart';
 import 'package:bfp_record_mapping/screens/signature/signature.dart';
+import 'package:bfp_record_mapping/shared_pref.dart';
 import 'package:flutter/material.dart';
 
 class UsersScreen extends StatefulWidget {
@@ -20,6 +21,14 @@ class _UsersScreenState extends State<UsersScreen> {
 
   // Sample users data
   List _users = [];
+  Map<String, dynamic> accountData = {};
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -28,6 +37,7 @@ class _UsersScreenState extends State<UsersScreen> {
   }
 
   void _loadUsers() async {
+    accountData = await StoreCredentials().getUserData();
     final result = await ApiPhp(tableName: "users").select();
 
     if (result["success"]) {
@@ -282,26 +292,29 @@ class _UsersScreenState extends State<UsersScreen> {
                         ),
                       ),
                     ),
-                    SizedBox(width: 20),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryRed,
+                    if (accountData.isNotEmpty &&
+                        accountData["role"] == "admin") ...[
+                      SizedBox(width: 20),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryRed,
+                        ),
+                        onPressed: () async {
+                          // Navigate to the add user screen
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  AddUserScreen(onUserAdded: _loadUsers),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          'Add User',
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
-                      onPressed: () async {
-                        // Navigate to the add user screen
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                AddUserScreen(onUserAdded: _loadUsers),
-                          ),
-                        );
-                      },
-                      child: const Text(
-                        'Add User',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -436,13 +449,6 @@ class _UsersScreenState extends State<UsersScreen> {
       _loadUsers();
     }
   }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    _searchController.dispose();
-    super.dispose();
-  }
 }
 
 class AddUserScreen extends StatefulWidget {
@@ -462,7 +468,7 @@ class _AddUserScreenState extends State<AddUserScreen> {
   final _mobileController = TextEditingController();
   String _selectedRole = 'Admin';
   Uint8List? _repSignature;
-
+  final String mobilePattern = r'^0\d{10}$';
   @override
   void dispose() {
     _fullNameController.dispose();
@@ -477,6 +483,7 @@ class _AddUserScreenState extends State<AddUserScreen> {
 
     // Validate inspector signature
     if (_selectedRole.toLowerCase() == 'inspector' && _repSignature == null) {
+      print("aatattata");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Signature is required for Inspector role'),
@@ -486,11 +493,10 @@ class _AddUserScreenState extends State<AddUserScreen> {
       );
       return;
     }
-
+    print("_selectedRole $_selectedRole");
     final String fileName = _selectedRole.toLowerCase() == 'inspector'
         ? 'insp_signature_${_fullNameController.text.toLowerCase().replaceAll(" ", "").trim()}.png'
         : '';
-
     LoadingDialog.show(
       title: 'Loading',
       message: 'Please wait...',
@@ -531,7 +537,7 @@ class _AddUserScreenState extends State<AddUserScreen> {
         'full_name': _fullNameController.text,
         'email': _emailController.text,
         'password': _passwordController.text,
-        'mobile_no': _mobileController.text,
+        'mobile_no': _mobileController.text.trim(),
         'role': _selectedRole,
         'is_active': "Y",
         // ✅ Use the full path from upload, not just the filename
@@ -542,7 +548,7 @@ class _AddUserScreenState extends State<AddUserScreen> {
         tableName: "users",
         parameters: newUser,
       ).insert();
-
+      print("newUserresult $result");
       // Close loading dialog
       Navigator.of(context).pop();
 
@@ -687,19 +693,43 @@ class _AddUserScreenState extends State<AddUserScreen> {
                 const SizedBox(height: 16),
 
                 // Mobile Number
+                // TextFormField(
+                //   controller: _mobileController,
+                //   decoration: const InputDecoration(
+                //     labelText: 'Mobile Number *',
+                //     border: OutlineInputBorder(),
+                //     prefixIcon: Icon(Icons.phone),
+                //   ),
+                //   keyboardType: TextInputType.phone,
+                //   validator: (value) {
+                //     if (value == null || value.isEmpty) {
+                //       return 'Please enter mobile number';
+                //     }
+                //     return null;
+                //   },
+                // ),
                 TextFormField(
                   controller: _mobileController,
-                  decoration: const InputDecoration(
-                    labelText: 'Mobile Number *',
-                    border: OutlineInputBorder(),
+
+                  decoration: InputDecoration(
+                    labelText: 'Mobile Number',
                     prefixIcon: Icon(Icons.phone),
+                    hintText: 'e.g., 09123456789',
+                    border: OutlineInputBorder(),
                   ),
+
                   keyboardType: TextInputType.phone,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter mobile number';
+                      return "Mobile number is required";
                     }
-                    return null;
+
+                    final regex = RegExp(mobilePattern);
+                    if (!regex.hasMatch(value) || value.length != 11) {
+                      return "Enter a valid mobile number";
+                    }
+
+                    return null; // valid
                   },
                 ),
                 const SizedBox(height: 16),
@@ -721,6 +751,7 @@ class _AddUserScreenState extends State<AddUserScreen> {
                   onChanged: (value) {
                     setState(() {
                       _selectedRole = value!;
+                      print("_selectedRoleSS $_selectedRole");
                     });
                   },
                 ),

@@ -5,7 +5,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:pointycastle/export.dart' as crypto;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:uuid/uuid.dart';
 
 class Functions {
   static Future<Position?> getLocation() async {
@@ -147,5 +149,18 @@ class Functions {
     final plainTextBytes = cipher.process(cipherText);
 
     return Uint8List.fromList(plainTextBytes);
+  }
+
+  Future<String> getUniqueDeviceId() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? storedDeviceId = prefs.getString('device_id');
+
+    if (storedDeviceId == null) {
+      var uuid = Uuid();
+      storedDeviceId = uuid.v4();
+      await prefs.setString('device_id', storedDeviceId);
+    }
+
+    return storedDeviceId;
   }
 }

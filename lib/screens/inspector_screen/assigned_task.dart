@@ -2,6 +2,7 @@ import 'package:bfp_record_mapping/api/api_key.dart';
 import 'package:bfp_record_mapping/database/assigned_task_db.dart';
 import 'package:bfp_record_mapping/functions.dart';
 import 'package:bfp_record_mapping/screens/inspector_screen/checklist.dart';
+import 'package:bfp_record_mapping/screens/login_screen.dart';
 import 'package:bfp_record_mapping/shared_pref.dart';
 import 'package:flutter/material.dart';
 
@@ -14,6 +15,7 @@ class InspAssignedTask extends StatefulWidget {
 
 class _InspAssignedTaskState extends State<InspAssignedTask> {
   bool isLoading = true;
+  bool isLoadingBtn = false;
   List assignedData = [];
   Map userData = {};
   bool hasNet = true;
@@ -41,17 +43,25 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
     });
   }
 
-  void _deleteExcessData(List resExceedData) async {
-    final allData = await dbHelper.getAllTasks();
+  void _deleteExcessData(List responseData) async {
+    dynamic allData = await dbHelper.getAllTasks();
 
-    final storedIds = allData.map((e) => e['assigned_id']).toSet();
-    final excessData = resExceedData
-        .where((objData) => objData["assigned_id"] == storedIds)
-        .toList();
-    if (excessData.isNotEmpty) {
-      for (var dataRow in excessData) {
-        await dbHelper.deleteTask(dataRow["assigned_id"]);
+    final localIds = allData.map((e) => e['assigned_id']).toSet();
+    allData.removeWhere(
+      (element) => !localIds.contains(element["assigned_id"]),
+    );
+
+    final serverIds = responseData.map((e) => e["assigned_id"]).toSet();
+
+    // Find IDs that are in local but NOT in server response (these should be deleted)
+    final idsToDelete = localIds.difference(serverIds);
+
+    if (idsToDelete.isNotEmpty) {
+      for (var id in idsToDelete) {
+        await dbHelper.deleteTask(id);
       }
+    } else {
+      print("No excess data to delete");
     }
   }
 
@@ -76,18 +86,22 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
       };
 
       final response = await api.selectWithJoin(joinConfig);
-      print("response $response");
+
       List responseData = response['data'] == null ? [] : response["data"];
 
       if (response['success']) {
-        _deleteExcessData(responseData);
         for (var rowData in responseData) {
           final existData = await dbHelper.getTaskById(rowData["assigned_id"]);
 
-          if (existData!.isEmpty) {
-            dbHelper.insertTask(rowData);
-          }
+          if (existData == null || existData.isEmpty) {
+            await dbHelper.insertTask(rowData);
+          } else {}
         }
+
+        // Delete excess data (records in local but not in server response)
+        _deleteExcessData(responseData);
+
+        // Get all updated local data
         final allAssignedData = await dbHelper.getAllTasks();
 
         setState(() {
@@ -102,6 +116,7 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
         });
       }
     } catch (e) {
+      print("Error in getAssignedSTask: $e");
       setState(() {
         isLoading = false;
       });
@@ -215,6 +230,28 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
     }
   }
 
+  Future<bool> performLogout() async {
+    final userData = await StoreCredentials().getUserData();
+    final result = await ApiPhp(
+      tableName: "users",
+      parameters: {"user_otp": "0", "device_key": ""},
+      whereClause: {"id": userData["id"]},
+    ).update();
+
+    if (result["success"]) {
+      await StoreCredentials().removeStoredData("user_data");
+      return true;
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${result["msg"]}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -228,12 +265,33 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
         elevation: 0,
         centerTitle: false,
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            child: CircleAvatar(
-              radius: 20,
-              backgroundColor: Colors.blue.shade50,
-              child: Icon(Icons.person, color: Colors.blue.shade700, size: 20),
+          GestureDetector(
+            onTap: isLoadingBtn
+                ? null
+                : () async {
+                    setState(() => isLoadingBtn = true);
+                    bool result = await performLogout();
+                    setState(() => isLoadingBtn = false);
+                    if (result) {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(
+                          builder: (context) => const LoginScreen(),
+                        ),
+                        (route) => false,
+                      );
+                      return;
+                    }
+                  },
+            child: Container(
+              margin: const EdgeInsets.only(right: 16),
+              child: CircleAvatar(
+                radius: 20,
+                backgroundColor: Colors.blue.shade50,
+                child: isLoadingBtn
+                    ? CircularProgressIndicator()
+                    : Icon(Icons.logout, color: Colors.red.shade700, size: 20),
+              ),
             ),
           ),
         ],
@@ -284,77 +342,86 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Header with improved design
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Today\'s Schedule',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey.shade900,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              '${assignedData.length} inspection${assignedData.length != 1 ? 's' : ''} scheduled',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.blue.shade700,
+                  GestureDetector(
+                    onTap: () async {
+                      final allAssignedData = await dbHelper.getAllTasks();
+                      print("allAssignedData $allAssignedData");
+                    },
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Today\'s Schedule',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey.shade900,
+                                ),
                               ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(30),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.calendar_today,
-                              size: 16,
-                              color: Colors.red.shade600,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _formatDate(DateTime.now().toIso8601String()),
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.grey.shade800,
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade50,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  '${assignedData.length} inspection${assignedData.length != 1 ? 's' : ''} scheduled',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.blue.shade700,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                        SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(30),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.calendar_today,
+                                size: 16,
+                                color: Colors.red.shade600,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _formatDate(DateTime.now().toIso8601String()),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey.shade800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 20),
                   Expanded(

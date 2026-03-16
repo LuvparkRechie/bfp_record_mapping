@@ -987,6 +987,8 @@ class YearEstablishmentsScreen extends StatelessWidget {
         builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
+      print(filePath);
+
       final String url =
           '${ApiKeys.pathVariable}${ApiKeys.downloadFile}?file=$filePath';
 
