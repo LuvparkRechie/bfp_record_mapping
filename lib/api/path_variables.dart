@@ -21,4 +21,5 @@ class ApiKeys {
   static final String reportsList = dotenv.env["REPORTS_LIST"]!;
   static final String generateFsic = dotenv.env["GENERATE_FSIC"]!;
   static final String otpHandler = dotenv.env["OTP_HANDLER"]!;
+  static final String inspectionOrder = dotenv.env["INSPECTION_ORDER"]!;
 }
