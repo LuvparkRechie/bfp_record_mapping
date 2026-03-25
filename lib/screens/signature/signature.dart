@@ -60,7 +60,7 @@ class _SignatureScreenState extends State<SignatureScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Owner's Signature"),
+        title: Text("Digital Signature"),
         centerTitle: true,
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,

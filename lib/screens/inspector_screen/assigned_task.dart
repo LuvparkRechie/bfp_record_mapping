@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:bfp_record_mapping/api/api_key.dart';
 import 'package:bfp_record_mapping/database/assigned_task_db.dart';
 import 'package:bfp_record_mapping/functions.dart';
+import 'package:bfp_record_mapping/screens/inspection_order_view.dart';
 import 'package:bfp_record_mapping/screens/inspector_screen/checklist.dart';
 import 'package:bfp_record_mapping/screens/login_screen.dart';
 import 'package:bfp_record_mapping/shared_pref.dart';
@@ -725,32 +728,58 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
                                               Expanded(
                                                 child: ElevatedButton(
                                                   onPressed: () async {
-                                                    final result = await Navigator.push(
-                                                      context,
-                                                      MaterialPageRoute(
-                                                        builder: (_) => ChecklistPage(
-                                                          establishmentId:
-                                                              inspection['establishment_id'],
-                                                          establishmentName:
-                                                              inspection['business_name'],
-                                                          address:
-                                                              inspection['street_address'],
-                                                          inspectionId:
-                                                              inspection['assigned_id'],
-                                                          inspectionData:
-                                                              inspection,
-                                                          userData: userData,
-                                                        ),
-                                                      ),
+                                                    List
+                                                    data = await selecOrder(
+                                                      inspection['establishment_id'],
                                                     );
-                                                    if (result != null) {
-                                                      print(
-                                                        "result assignedID $result",
+
+                                                    if (data.isNotEmpty &&
+                                                        data[0]["rep_signature"]
+                                                            .toString()
+                                                            .isNotEmpty) {
+                                                      final result = await Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (_) => ChecklistPage(
+                                                            establishmentId:
+                                                                inspection['establishment_id'],
+                                                            establishmentName:
+                                                                inspection['business_name'],
+                                                            address:
+                                                                inspection['street_address'],
+                                                            inspectionId:
+                                                                inspection['assigned_id'],
+                                                            inspectionData:
+                                                                inspection,
+                                                            userData: userData,
+                                                          ),
+                                                        ),
                                                       );
-                                                      _getAssignedTaskLocally(
-                                                        result,
-                                                      );
+                                                      if (result != null) {
+                                                        _getAssignedTaskLocally(
+                                                          result,
+                                                        );
+                                                      }
+                                                      return;
                                                     }
+                                                    _showDialog(data);
+                                                    // final result =
+                                                    //     await Navigator.push(
+                                                    //       context,
+                                                    //       MaterialPageRoute(
+                                                    //         builder: (context) =>
+                                                    //             const SignatureScreen(),
+                                                    //       ),
+                                                    //     );
+
+                                                    // if (result != null) {
+                                                    //   uploadSignature(
+                                                    //     result,
+                                                    //     "rep_signature_${inspection["establishment_id"]}.png",
+                                                    //     "rep_signature",
+                                                    //     data[0]["id"],
+                                                    //   );
+                                                    // }
                                                   },
                                                   style: ElevatedButton.styleFrom(
                                                     backgroundColor: Colors.red,
@@ -803,6 +832,64 @@ class _InspAssignedTaskState extends State<InspAssignedTask> {
                   ),
                 ],
               ),
+      ),
+    );
+  }
+
+  Future<List> selecOrder(id) async {
+    final result = await ApiPhp(
+      tableName: "inspection_orders",
+      whereClause: {"establishment_id": id},
+    ).select();
+
+    return result["data"];
+  }
+
+  void uploadSignature(Uint8List signature, fileName, colName, orderId) async {
+    await ApiPhp.uploadPngFile(
+      signatureBytes: signature,
+      fileName: fileName,
+    ).then((value) async {
+      if (value!["success"]) {
+        final result = await ApiPhp(
+          tableName: "inspection_orders",
+          parameters: {colName: fileName},
+          whereClause: {"id": orderId},
+        ).update();
+        print("result $result");
+        if (result["success"]) {
+          getAssignedSTask();
+        }
+      }
+    });
+  }
+
+  void _showDialog(inspection) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Oops!'),
+        content: Text(
+          "A signature is required before starting the inspection. Please sign the inspection order.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      InspOrderView(inspectionData: inspection),
+                ),
+              );
+            },
+            child: const Text('View Inspection Order'),
+          ),
+        ],
       ),
     );
   }

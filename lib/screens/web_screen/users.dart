@@ -293,7 +293,7 @@ class _UsersScreenState extends State<UsersScreen> {
                       ),
                     ),
                     if (accountData.isNotEmpty &&
-                        accountData["role"] == "admin") ...[
+                        accountData["role"] == "Admin") ...[
                       SizedBox(width: 20),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(

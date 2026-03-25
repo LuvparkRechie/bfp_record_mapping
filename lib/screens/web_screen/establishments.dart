@@ -1927,6 +1927,7 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
   final ScrollController _scrollController = ScrollController();
   Map<String, dynamic>? userData;
   Map<String, dynamic> _selectedRow = {};
+  bool isAssigned = false;
 
   @override
   void initState() {
@@ -2129,6 +2130,41 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
                   ElevatedButton(
                     onPressed: () async {
                       if (_formKey.currentState!.validate()) {
+                        if (!isAssigned) {
+                          String inspectorName = inspectorData
+                              .where(
+                                (e) =>
+                                    e['id'].toString() == selectedInspectorId,
+                              )
+                              .toList()[0]['full_name'];
+                          Map<String, dynamic> orderParam = {
+                            "establishment_id":
+                                establishment["establishment_id"],
+                            "inspector_name": inspectorName,
+                            "owner_name": establishment["owner_name"],
+                            "business_name": establishment["business_name"],
+                            "address": establishment["street_address"],
+                            "assigned_by": userData!["id"],
+                            "rec_signature": "",
+                            "approved_signature": "",
+                            "rep_signature": "",
+                          };
+
+                          final inspResponse =
+                              await ApiPhp(
+                                tableName: "inspection_order",
+                                parameters: orderParam,
+                              ).insert(
+                                subUrl:
+                                    '${ApiKeys.pathVariable}${ApiKeys.inspectionOrder}',
+                              );
+                          setState(() {
+                            isAssigned = inspResponse["success"];
+                          });
+                          print("inspResponse $inspResponse");
+                          if (!inspResponse["success"]) return;
+                        }
+
                         final inspectionData = {
                           'establishment_id':
                               establishment['establishment_id'] ?? 0,
@@ -2150,7 +2186,7 @@ class _EstablishmentScreenState extends State<EstablishmentScreen> {
                               subUrl:
                                   '${ApiKeys.pathVariable}${ApiKeys.assignEstablishment}',
                             );
-
+                        print("response $response");
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(response["message"]),
